@@ -13,9 +13,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   writeClipboard: (content) => ipcRenderer.invoke("write-clipboard", content),
 
   // Network operations
-  connectToPeer: (deviceInfo) => ipcRenderer.invoke("connect-to-peer", deviceInfo),
+  connectToPeer: (deviceInfo) =>
+    ipcRenderer.invoke("connect-to-peer", deviceInfo),
   disconnectFromPeer: (peerId) =>
     ipcRenderer.invoke("disconnect-from-peer", peerId),
+  testPeerConnections: () => ipcRenderer.invoke("test-peer-connections"),
 
   // Event listeners
   onClipboardChanged: (callback) => {

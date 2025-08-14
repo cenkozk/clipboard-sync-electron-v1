@@ -230,6 +230,19 @@ ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
   return { success: false, error: "P2P network not initialized" };
 });
 
+// Optional: expose a simple diagnostic to test peer connectivity states
+ipcMain.handle("test-peer-connections", () => {
+  if (p2pNetwork && typeof p2pNetwork.testAllPeerConnections === "function") {
+    try {
+      p2pNetwork.testAllPeerConnections();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
 ipcMain.handle("get-clipboard-history", () => {
   // This would return clipboard history
   return [];

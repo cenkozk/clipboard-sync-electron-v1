@@ -21,6 +21,8 @@ class P2PNetwork extends EventEmitter {
     this.peerOptions = {
       wrtc: wrtc,
       trickle: false,
+      // Prefer host candidates on LAN
+      config: { iceServers: [] },
     };
   }
 
@@ -184,6 +186,22 @@ class P2PNetwork extends EventEmitter {
     // Set up peer event handlers immediately
     this.setupPeerEventHandlers(data.deviceId, peer);
 
+    // Store peer immediately (with remote IP) so subsequent steps can find it
+    this.peers.set(data.deviceId, {
+      peer: peer,
+      deviceName: data.deviceName,
+      localIP: data.localIP,
+      remoteIP: rinfo.address,
+      connected: false,
+    });
+
+    // Apply the initiator's offer to this responder
+    try {
+      peer.signal(data.signal);
+    } catch (e) {
+      console.error("Failed to signal responder peer:", e);
+    }
+
     peer.on("signal", (signal) => {
       // Send connection response with our signal
       const response = {
@@ -195,7 +213,8 @@ class P2PNetwork extends EventEmitter {
         timestamp: Date.now(),
       };
 
-      this.sendMessage(response, rinfo.address, rinfo.port);
+      // Reply to the requester's listening port if provided; otherwise fallback to source port
+      this.sendMessage(response, rinfo.address, data.port || rinfo.port);
     });
 
     peer.on("connect", () => {
@@ -214,21 +233,26 @@ class P2PNetwork extends EventEmitter {
       this.emit("peer-connect", data.deviceId, peer);
     });
 
-    // Store peer temporarily
-    this.peers.set(data.deviceId, {
-      peer: peer,
-      deviceName: data.deviceName,
-      localIP: data.localIP,
-      connected: false,
-    });
+    // Peer already stored above
   }
 
   handleConnectResponse(data, rinfo) {
-    const peerData = this.peers.get(data.targetDeviceId);
-    if (!peerData) return;
+    console.log(
+      `Received connection response from ${data.deviceName} (${data.deviceId}) for target ${data.targetDeviceId}`
+    );
+    // On the initiator side we stored the peer under the REMOTE device id
+    const peerData = this.peers.get(data.deviceId);
+    if (!peerData) {
+      console.error(`Peer ${data.deviceId} not found for response`);
+      return;
+    }
 
     const peer = peerData.peer;
-    peer.signal(data.signal);
+    try {
+      peer.signal(data.signal);
+    } catch (e) {
+      console.error("Failed to signal initiator peer:", e);
+    }
   }
 
   connectToDevice(deviceInfo) {
@@ -253,6 +277,7 @@ class P2PNetwork extends EventEmitter {
         deviceName: this.deviceName,
         targetDeviceId: deviceInfo.deviceId,
         signal: signal,
+        port: this.port,
         timestamp: Date.now(),
       };
 
@@ -277,16 +302,28 @@ class P2PNetwork extends EventEmitter {
       this.emit("peer-connect", deviceInfo.deviceId, peer);
     });
 
-    // Store peer temporarily
+    // Store peer (include remote IP for reference)
     this.peers.set(deviceInfo.deviceId, {
       peer: peer,
       deviceName: deviceInfo.deviceName,
       localIP: deviceInfo.localIP,
+      remoteIP: deviceInfo.remoteIP,
       connected: false,
     });
   }
 
   setupPeerEventHandlers(peerId, peer) {
+    // Extra diagnostics
+    peer.on("signal", (signal) => {
+      try {
+        const t =
+          typeof signal === "object" && signal
+            ? signal.type || Object.keys(signal)[0]
+            : typeof signal;
+        console.log(`Peer ${peerId} signal generated:`, t);
+      } catch (_) {}
+    });
+
     peer.on("data", (data) => {
       try {
         const message = JSON.parse(data.toString());
