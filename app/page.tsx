@@ -84,6 +84,7 @@ const ClipboardSyncApp = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCopied, setIsCopied] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isDeviceExpanded, setIsDeviceExpanded] = useState(false);
 
   // Refs for element measurements
   const appContainerRef = useRef<HTMLDivElement>(null);
@@ -482,20 +483,21 @@ const ClipboardSyncApp = () => {
                       Your Device
                     </h2>
                   </div>
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      deviceInfo?.isConnected ? "bg-emerald-500" : "bg-red-500"
-                    }`}
-                    style={{
-                      animation: deviceInfo?.isConnected
-                        ? "pulse 2s infinite"
-                        : "none",
-                    }}
-                  ></div>
+                  <button
+                    onClick={() => setIsDeviceExpanded(!isDeviceExpanded)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-300 ${
+                        isDeviceExpanded ? "rotate-180" : "rotate-0"
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 {deviceInfo ? (
                   <div className="space-y-3">
+                    {/* Always visible device name */}
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         Device Name
@@ -504,53 +506,62 @@ const ClipboardSyncApp = () => {
                         {deviceInfo.deviceName}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Local IP
-                      </span>
-                      <span className="text-xs font-mono text-gray-800 dark:text-gray-200">
-                        {deviceInfo.localIP}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Status
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {deviceInfo.isConnected ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                            Connected
-                          </span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-                            Disconnected
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Connected Peers
-                      </span>
-                      <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
-                        {deviceInfo.peerCount}
-                      </span>
-                    </div>
 
-                    {/* Device ID (expandable) */}
-                    <details className="group pt-1">
-                      <summary className="cursor-pointer list-none">
-                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                          <span>Device ID</span>
-                          <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
+                    {/* Expandable details with smooth animation */}
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        isDeviceExpanded
+                          ? "max-h-96 opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <div className="space-y-3 pt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Local IP
+                          </span>
+                          <span className="text-xs font-mono text-gray-800 dark:text-gray-200">
+                            {deviceInfo.localIP}
+                          </span>
                         </div>
-                      </summary>
-                      <div className="mt-2 p-2 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg">
-                        <code className="text-xs text-gray-700 dark:text-gray-300 break-all select-all">
-                          {deviceInfo.deviceId}
-                        </code>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Status
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {deviceInfo.isConnected ? (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                Connected
+                              </span>
+                            ) : (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                Disconnected
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Connected Peers
+                          </span>
+                          <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                            {deviceInfo.peerCount}
+                          </span>
+                        </div>
+
+                        {/* Device ID */}
+                        <div className="pt-1">
+                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span>Device ID</span>
+                          </div>
+                          <div className="mt-2 p-2 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg">
+                            <code className="text-xs text-gray-700 dark:text-gray-300 break-all select-all">
+                              {deviceInfo.deviceId}
+                            </code>
+                          </div>
+                        </div>
                       </div>
-                    </details>
+                    </div>
                   </div>
                 ) : (
                   <div className="animate-pulse space-y-4">

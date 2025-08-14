@@ -20,8 +20,12 @@ let isConnected = false;
 // Create the main browser window
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 400,
+    height: 700,
+    minWidth: 400,
+    maxWidth: 400,
+    minHeight: 600,
+    maxHeight: 1200,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
