@@ -77,7 +77,8 @@ class P2PNetwork extends EventEmitter {
 
   startDiscovery() {
     try {
-      this.discoverySocket = dgram.createSocket("udp4");
+      // reuseAddr is important on macOS to properly receive multicast/broadcast
+      this.discoverySocket = dgram.createSocket({ type: "udp4", reuseAddr: true });
 
       this.discoverySocket.on("error", (err) => {
         console.error("Discovery socket error:", err);
@@ -92,21 +93,56 @@ class P2PNetwork extends EventEmitter {
         }
       });
 
-      // Bind to port
+      // Bind to all interfaces on the discovery port
       this.discoverySocket.bind(this.port, () => {
-        this.discoverySocket.setBroadcast(true);
-        this.discoverySocket.setMulticastTTL(128);
+        try {
+          this.discoverySocket.setBroadcast(true);
+          this.discoverySocket.setMulticastTTL(128);
+          // Enable loopback so we can see local multicast for diagnostics
+          if (typeof this.discoverySocket.setMulticastLoopback === "function") {
+            this.discoverySocket.setMulticastLoopback(true);
+          }
+          if (typeof this.discoverySocket.setMulticastInterface === "function") {
+            try {
+              this.discoverySocket.setMulticastInterface(this.localIP);
+              console.log(`Multicast interface set to ${this.localIP}`);
+            } catch (e) {
+              console.log("Failed to set multicast interface:", e.message);
+            }
+          }
 
-        // Join multicast group for local network discovery
-        this.discoverySocket.addMembership("224.0.0.1");
+          // Join multicast group on all IPv4 interfaces explicitly
+          const ifaces = this.getIPv4Interfaces();
+          try {
+            this.discoverySocket.addMembership("224.0.0.1");
+            console.log("Joined multicast 224.0.0.1 (default)");
+          } catch (e) {
+            console.log("Default multicast join failed:", e.message);
+          }
+          for (const nic of ifaces) {
+            try {
+              this.discoverySocket.addMembership("224.0.0.1", nic.address);
+              console.log(`Joined multicast 224.0.0.1 on ${nic.name} (${nic.address})`);
+            } catch (e) {
+              // Some interfaces may not support multicast; ignore
+            }
+          }
 
-        // Start broadcasting presence
-        this.broadcastPresence();
-
-        // Set up periodic presence broadcast
-        setInterval(() => {
+          // Start broadcasting presence
           this.broadcastPresence();
-        }, 5000);
+
+          // Set up periodic presence broadcast
+          setInterval(() => {
+            this.broadcastPresence();
+          }, 5000);
+
+          // Opportunistic subnet scan to reach hosts on networks blocking broadcast/multicast
+          setTimeout(() => {
+            this.scanLocalSubnet();
+          }, 1000);
+        } catch (cfgErr) {
+          console.error("Failed to configure discovery socket:", cfgErr);
+        }
       });
     } catch (error) {
       console.error("Failed to start discovery:", error);
@@ -127,17 +163,84 @@ class P2PNetwork extends EventEmitter {
 
     const message = Buffer.from(JSON.stringify(presenceMessage));
 
-    // Broadcast to local network
+    // Broadcast to limited broadcast
     try {
-      this.discoverySocket.send(
-        message,
-        0,
-        message.length,
-        this.port,
-        "255.255.255.255"
-      );
+      this.discoverySocket.send(message, 0, message.length, this.port, "255.255.255.255");
+      // console.log(`Presence -> 255.255.255.255:${this.port}`);
     } catch (error) {
-      console.error("Failed to broadcast presence:", error);
+      console.error("Failed to broadcast presence (limited):", error);
+    }
+
+    // Broadcast to each interface's directed broadcast address
+    const ifaces = this.getIPv4Interfaces();
+    const sent = new Set();
+    for (const nic of ifaces) {
+      if (!nic.netmask) continue;
+      const bcast = this.computeBroadcastAddress(nic.address, nic.netmask);
+      if (!bcast || sent.has(bcast)) continue;
+      try {
+        this.discoverySocket.send(message, 0, message.length, this.port, bcast);
+        sent.add(bcast);
+        // console.log(`Presence -> ${bcast}:${this.port}`);
+      } catch (_) {}
+    }
+  }
+
+  getIPv4Interfaces() {
+    const list = [];
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          list.push({ name, address: iface.address, netmask: iface.netmask });
+        }
+      }
+    }
+    return list;
+  }
+
+  computeBroadcastAddress(ip, mask) {
+    try {
+      const ipParts = ip.split(".").map((x) => parseInt(x, 10));
+      const maskParts = mask.split(".").map((x) => parseInt(x, 10));
+      if (ipParts.length !== 4 || maskParts.length !== 4) return null;
+      const bcastParts = [];
+      for (let i = 0; i < 4; i++) {
+        bcastParts.push((ipParts[i] & maskParts[i]) | (255 ^ maskParts[i]));
+      }
+      return bcastParts.join(".");
+    } catch (_) {
+      return null;
+    }
+  }
+
+  scanLocalSubnet() {
+    const local = this.getIPv4Interfaces().find((i) => i.address === this.localIP);
+    if (!local || !local.netmask) return;
+
+    const ipParts = local.address.split(".").map((x) => parseInt(x, 10));
+    // Scan a window of addresses around current host to reduce noise
+    const start = Math.max(1, ipParts[3] - 8);
+    const end = Math.min(254, ipParts[3] + 8);
+
+    const presenceMessage = {
+      type: "presence",
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      localIP: this.localIP,
+      port: this.port,
+      timestamp: Date.now(),
+    };
+    const buf = Buffer.from(JSON.stringify(presenceMessage));
+
+    for (let last = start; last <= end; last++) {
+      if (last === ipParts[3]) continue; // skip self
+      const target = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}.${last}`;
+      setTimeout(() => {
+        try {
+          this.discoverySocket.send(buf, 0, buf.length, this.port, target);
+        } catch (_) {}
+      }, (last - start) * 50);
     }
   }
 
