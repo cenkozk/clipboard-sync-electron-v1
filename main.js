@@ -1,0 +1,273 @@
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  clipboard,
+} = require("electron");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const P2PNetwork = require("./p2p-network");
+
+let mainWindow;
+let clipboardWatcher;
+let p2pNetwork;
+let deviceId = uuidv4();
+let deviceName = require("os").hostname();
+let localIP = "127.0.0.1";
+let isConnected = false;
+
+// Create the main browser window
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+    icon: path.join(__dirname, "assets/icon.png"),
+    title: "Clipboard Sync",
+  });
+
+  // Load the Next.js app
+  if (process.env.NODE_ENV === "development" || !app.isPackaged) {
+    mainWindow.loadURL("http://localhost:3000");
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "renderer/index.html"));
+  }
+
+  // Handle window closed
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+
+// Initialize clipboard monitoring
+function initClipboardMonitoring() {
+  let lastClipboardContent = "";
+
+  clipboardWatcher = setInterval(() => {
+    try {
+      const currentContent = clipboard.readText();
+
+      if (
+        currentContent !== lastClipboardContent &&
+        currentContent.trim() !== ""
+      ) {
+        lastClipboardContent = currentContent;
+        console.log(
+          "Clipboard changed:",
+          currentContent.substring(0, 50) + "..."
+        );
+
+        // Broadcast to all connected peers
+        broadcastClipboardChange(currentContent);
+
+        // Update UI
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("clipboard-changed", {
+            content: currentContent,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error reading clipboard:", error);
+    }
+  }, 1000);
+}
+
+// Broadcast clipboard change to all peers
+function broadcastClipboardChange(content) {
+  if (p2pNetwork) {
+    const message = {
+      type: "clipboard-update",
+      content: content,
+      deviceId: deviceId,
+      deviceName: deviceName,
+      timestamp: new Date().toISOString(),
+    };
+
+    const successCount = p2pNetwork.broadcastToAllPeers(message);
+    console.log(`Broadcasted clipboard to ${successCount} peers`);
+  }
+}
+
+// Handle incoming clipboard updates
+function handleClipboardUpdate(data) {
+  try {
+    const { content, deviceId: senderId, deviceName: senderName } = data;
+
+    // Don't update if it's from ourselves
+    if (senderId === deviceId) return;
+
+    console.log(
+      `Received clipboard from ${senderName}:`,
+      content.substring(0, 50) + "..."
+    );
+
+    // Update local clipboard
+    clipboard.writeText(content);
+
+    // Update UI
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("clipboard-received", {
+        content: content,
+        fromDevice: senderName,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error("Error handling clipboard update:", error);
+  }
+}
+
+// Network discovery
+function startNetworkDiscovery() {
+  try {
+    // Initialize P2P network
+    p2pNetwork = new P2PNetwork({
+      deviceId: deviceId,
+      deviceName: deviceName,
+      port: 8888,
+    });
+
+    // Set up event handlers
+    p2pNetwork.on("started", (networkInfo) => {
+      localIP = networkInfo.localIP;
+      console.log("P2P Network started:", networkInfo);
+      isConnected = true;
+
+      // Update UI
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("network-started", networkInfo);
+      }
+    });
+
+    p2pNetwork.on("device-discovered", (deviceInfo) => {
+      console.log("Device discovered:", deviceInfo);
+
+      // Update UI
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("device-discovered", deviceInfo);
+      }
+    });
+
+    p2pNetwork.on("peer-connect", (peerId, peer) => {
+      console.log("Peer connected:", peerId);
+      isConnected = true;
+
+      // Update UI
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("peer-connected", {
+          peerId,
+          deviceName: "Unknown",
+        });
+      }
+    });
+
+    p2pNetwork.on("peer-disconnect", (peerId) => {
+      console.log("Peer disconnected:", peerId);
+
+      // Update UI
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("peer-disconnected", { peerId });
+      }
+    });
+
+    p2pNetwork.on("clipboard-update", (data) => {
+      handleClipboardUpdate(data);
+    });
+
+    // Start the P2P network
+    p2pNetwork.start();
+  } catch (error) {
+    console.error("Failed to start network discovery:", error);
+  }
+}
+
+// IPC handlers
+ipcMain.handle("get-device-info", () => {
+  return {
+    deviceId,
+    deviceName,
+    localIP,
+    isConnected,
+    peerCount: p2pNetwork ? p2pNetwork.getPeerCount() : 0,
+  };
+});
+
+ipcMain.handle("get-peers", () => {
+  if (p2pNetwork) {
+    return p2pNetwork.getConnectedPeers();
+  }
+  return [];
+});
+
+ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
+  if (p2pNetwork) {
+    try {
+      p2pNetwork.connectToDevice(deviceInfo);
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to connect to peer:", error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
+ipcMain.handle("get-clipboard-history", () => {
+  // This would return clipboard history
+  return [];
+});
+
+// App lifecycle
+app.whenReady().then(() => {
+  createWindow();
+  initClipboardMonitoring();
+  startNetworkDiscovery();
+
+  // Register global shortcuts
+  globalShortcut.register("CommandOrControl+Shift+V", () => {
+    // Toggle clipboard sync
+    isConnected = !isConnected;
+    console.log("Clipboard sync toggled:", isConnected);
+  });
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+app.on("will-quit", () => {
+  // Cleanup
+  if (clipboardWatcher) {
+    clearInterval(clipboardWatcher);
+  }
+
+  // Stop P2P network
+  if (p2pNetwork) {
+    p2pNetwork.stop();
+  }
+
+  globalShortcut.unregisterAll();
+});
+
+// Handle app quit
+app.on("before-quit", () => {
+  if (clipboardWatcher) {
+    clearInterval(clipboardWatcher);
+  }
+});

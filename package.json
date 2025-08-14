@@ -1,0 +1,70 @@
+{
+  "name": "clipboard-sync-electron",
+  "version": "1.0.0",
+  "description": "Cross-platform clipboard synchronization app using P2P connections over LAN",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:next\" \"npm run dev:electron\"",
+    "dev:next": "next dev",
+    "dev:electron": "wait-on http://localhost:3000 && electron .",
+    "build": "next build",
+    "start": "next start",
+    "electron:build": "electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "clipboard",
+    "sync",
+    "electron",
+    "p2p",
+    "lan",
+    "cross-platform"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "autoprefixer": "^10.4.0",
+    "concurrently": "^8.0.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "next": "^14.0.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0",
+    "wait-on": "^7.0.0"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "simple-peer": "^9.11.1",
+    "network": "^0.4.0",
+    "ip": "^1.1.8",
+    "uuid": "^9.0.0"
+  },
+  "build": {
+    "appId": "com.clipboardsync.app",
+    "productName": "Clipboard Sync",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

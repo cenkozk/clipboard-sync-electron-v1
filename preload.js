@@ -1,0 +1,38 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+// Expose protected methods that allow the renderer process to use
+// the ipcRenderer without exposing the entire object
+contextBridge.exposeInMainWorld("electronAPI", {
+  // Device information
+  getDeviceInfo: () => ipcRenderer.invoke("get-device-info"),
+  getPeers: () => ipcRenderer.invoke("get-peers"),
+  getClipboardHistory: () => ipcRenderer.invoke("get-clipboard-history"),
+
+  // Clipboard operations
+  readClipboard: () => ipcRenderer.invoke("read-clipboard"),
+  writeClipboard: (content) => ipcRenderer.invoke("write-clipboard", content),
+
+  // Network operations
+  connectToPeer: (peerId) => ipcRenderer.invoke("connect-to-peer", peerId),
+  disconnectFromPeer: (peerId) =>
+    ipcRenderer.invoke("disconnect-from-peer", peerId),
+
+  // Event listeners
+  onClipboardChanged: (callback) => {
+    ipcRenderer.on("clipboard-changed", (event, data) => callback(data));
+  },
+  onClipboardReceived: (callback) => {
+    ipcRenderer.on("clipboard-received", (event, data) => callback(data));
+  },
+  onPeerConnected: (callback) => {
+    ipcRenderer.on("peer-connected", (event, data) => callback(data));
+  },
+  onPeerDisconnected: (callback) => {
+    ipcRenderer.on("peer-disconnected", (event, data) => callback(data));
+  },
+
+  // Remove event listeners
+  removeAllListeners: (channel) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
+});
