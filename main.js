@@ -140,7 +140,7 @@ function startNetworkDiscovery() {
       localIP = networkInfo.localIP;
       console.log("P2P Network started:", networkInfo);
       isConnected = true;
-      
+
       // Update UI
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("network-started", networkInfo);

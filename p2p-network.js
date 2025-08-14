@@ -3,6 +3,9 @@ const { EventEmitter } = require("events");
 const dgram = require("dgram");
 const os = require("os");
 
+// Configure simple-peer to use the WebRTC polyfill
+const wrtc = require('@koush/wrtc');
+
 class P2PNetwork extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -13,6 +16,12 @@ class P2PNetwork extends EventEmitter {
     this.peers = new Map();
     this.discoverySocket = null;
     this.isRunning = false;
+    
+    // Configure simple-peer options with WebRTC polyfill
+    this.peerOptions = {
+      wrtc: wrtc,
+      trickle: false
+    };
   }
 
   getLocalIP() {
@@ -166,8 +175,11 @@ class P2PNetwork extends EventEmitter {
       `Connection request from ${data.deviceName} (${data.deviceId})`
     );
 
-    // Create peer connection
-    const peer = new SimplePeer({ initiator: false, trickle: false });
+    // Create peer connection with WebRTC polyfill
+    const peer = new SimplePeer({ 
+      initiator: false, 
+      ...this.peerOptions 
+    });
 
     // Set up peer event handlers immediately
     this.setupPeerEventHandlers(data.deviceId, peer);
@@ -188,7 +200,7 @@ class P2PNetwork extends EventEmitter {
 
     peer.on("connect", () => {
       console.log(`Connected to ${data.deviceName} (${data.deviceId})`);
-      
+
       // Update peer data with connected status
       const peerData = this.peers.get(data.deviceId);
       if (peerData) {
@@ -224,8 +236,11 @@ class P2PNetwork extends EventEmitter {
       `Attempting to connect to ${deviceInfo.deviceName} (${deviceInfo.deviceId})`
     );
 
-    // Create peer connection
-    const peer = new SimplePeer({ initiator: true, trickle: false });
+    // Create peer connection with WebRTC polyfill
+    const peer = new SimplePeer({ 
+      initiator: true, 
+      ...this.peerOptions 
+    });
 
     // Set up peer event handlers immediately
     this.setupPeerEventHandlers(deviceInfo.deviceId, peer);
@@ -248,7 +263,7 @@ class P2PNetwork extends EventEmitter {
       console.log(
         `Connected to ${deviceInfo.deviceName} (${deviceInfo.deviceId})`
       );
-      
+
       // Update peer data with connected status
       const peerData = this.peers.get(deviceInfo.deviceId);
       if (peerData) {
@@ -356,8 +371,11 @@ class P2PNetwork extends EventEmitter {
 
   getConnectedPeers() {
     const connectedPeers = [];
-    console.log("getConnectedPeers called, total peers stored:", this.peers.size);
-    
+    console.log(
+      "getConnectedPeers called, total peers stored:",
+      this.peers.size
+    );
+
     this.peers.forEach((peerData, peerId) => {
       console.log(`Peer ${peerId}:`, peerData);
       if (peerData.connected) {
@@ -369,7 +387,7 @@ class P2PNetwork extends EventEmitter {
         });
       }
     });
-    
+
     console.log("Returning connected peers:", connectedPeers);
     return connectedPeers;
   }
