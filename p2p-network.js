@@ -4,7 +4,7 @@ const dgram = require("dgram");
 const os = require("os");
 
 // Configure simple-peer to use the WebRTC polyfill
-const wrtc = require('@koush/wrtc');
+const wrtc = require("@koush/wrtc");
 
 class P2PNetwork extends EventEmitter {
   constructor(options = {}) {
@@ -16,11 +16,11 @@ class P2PNetwork extends EventEmitter {
     this.peers = new Map();
     this.discoverySocket = null;
     this.isRunning = false;
-    
+
     // Configure simple-peer options with WebRTC polyfill
     this.peerOptions = {
       wrtc: wrtc,
-      trickle: false
+      trickle: false,
     };
   }
 
@@ -176,9 +176,9 @@ class P2PNetwork extends EventEmitter {
     );
 
     // Create peer connection with WebRTC polyfill
-    const peer = new SimplePeer({ 
-      initiator: false, 
-      ...this.peerOptions 
+    const peer = new SimplePeer({
+      initiator: false,
+      ...this.peerOptions,
     });
 
     // Set up peer event handlers immediately
@@ -237,9 +237,9 @@ class P2PNetwork extends EventEmitter {
     );
 
     // Create peer connection with WebRTC polyfill
-    const peer = new SimplePeer({ 
-      initiator: true, 
-      ...this.peerOptions 
+    const peer = new SimplePeer({
+      initiator: true,
+      ...this.peerOptions,
     });
 
     // Set up peer event handlers immediately
