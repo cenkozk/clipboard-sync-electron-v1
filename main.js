@@ -29,6 +29,20 @@ function createWindow() {
     },
     icon: path.join(__dirname, "assets/icon.png"),
     title: "Clipboard Sync",
+    backgroundColor: "#0a0a0a", // Dark background matching app's bg-950
+    titleBarStyle: "hidden",
+    vibrancy: "under-window",
+    visualEffectState: "active",
+    show: false, // Don't show until ready
+    frame: true, // Restore frame for rounded corners
+    transparent: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    fullscreenable: true,
+    hasShadow: true,
+    thickFrame: true,
+    roundedCorners: true,
   });
 
   // Load the Next.js app
@@ -38,6 +52,11 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "renderer/index.html"));
   }
+
+  // Show window when ready
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+  });
 
   // Handle window closed
   mainWindow.on("closed", () => {
@@ -192,6 +211,29 @@ function startNetworkDiscovery() {
     console.error("Failed to start network discovery:", error);
   }
 }
+
+// IPC handlers for window controls
+ipcMain.handle("minimize-window", () => {
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.handle("maximize-window", () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.handle("close-window", () => {
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
 
 // IPC handlers
 ipcMain.handle("get-device-info", () => {

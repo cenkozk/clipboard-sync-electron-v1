@@ -4,38 +4,30 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Clipboard,
   Users,
-  Network,
   RefreshCw,
   Copy,
   CheckCircle,
-  AlertCircle,
-  Wifi,
-  WifiOff,
   Monitor,
   Smartphone,
   Laptop,
   Server,
-  Activity,
-  Settings,
-  Zap,
   ArrowRightLeft,
-  Globe,
   Shield,
-  Clock,
   Trash2,
   Download,
   ChevronDown,
+  Minus,
+  Square,
   X,
-  Plus,
-  Search,
-  Info,
-  ExternalLink,
 } from "lucide-react";
 
 // TypeScript declarations for electronAPI
 declare global {
   interface Window {
     electronAPI: {
+      minimizeWindow: () => Promise<void>;
+      maximizeWindow: () => Promise<void>;
+      closeWindow: () => Promise<void>;
       getDeviceInfo: () => Promise<any>;
       getPeers: () => Promise<any[]>;
       getClipboardHistory: () => Promise<any[]>;
@@ -91,13 +83,6 @@ const ClipboardSyncApp = () => {
   const [scanProgress, setScanProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCopied, setIsCopied] = useState<string | null>(null);
-  const [showNetworkPanel, setShowNetworkPanel] = useState(true);
-  const [showDetailsPanel, setShowDetailsPanel] = useState(true);
-  const [showPeersPanel, setShowPeersPanel] = useState(true);
-  const [showHistoryPanel, setShowHistoryPanel] = useState(true);
-  const [activeTab, setActiveTab] = useState<"main" | "details" | "stats">(
-    "main"
-  );
   const [mounted, setMounted] = useState(false);
 
   // Refs for element measurements
@@ -380,6 +365,49 @@ const ClipboardSyncApp = () => {
         ::-webkit-scrollbar-thumb:hover {
           background: rgba(16, 185, 129, 0.5);
         }
+
+        /* Window styling */
+        body {
+          -webkit-app-region: no-drag;
+          user-select: none;
+        }
+
+        /* Make title bar draggable */
+        .title-bar {
+          -webkit-app-region: drag;
+        }
+
+        /* Make content areas non-draggable */
+        button,
+        input,
+        textarea,
+        [role="button"],
+        .no-drag {
+          -webkit-app-region: no-drag;
+          user-select: text;
+        }
+
+        /* Remove focus rings from all elements */
+        *:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Remove focus rings from buttons specifically */
+        button:focus,
+        button:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
+          ring: none !important;
+        }
+
+        /* Remove focus rings from inputs and other form elements */
+        input:focus,
+        textarea:focus,
+        select:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
       `}</style>
 
       {/* Background gradients */}
@@ -393,110 +421,48 @@ const ClipboardSyncApp = () => {
         ref={appContainerRef}
         className="w-full max-w-7xl mx-auto px-4 py-4 sm:py-6 relative z-10"
       >
-        {/* Header */}
-        <header
-          className={`bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-4 mb-6 border border-gray-200/30 dark:border-gray-700/30 shadow-lg transition-all duration-500 transform ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
-                <ArrowRightLeft className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-800 dark:from-emerald-400 dark:to-emerald-600">
-                  SyncClip
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Seamless clipboard synchronization across devices
-                </p>
-              </div>
+        {/* Custom Title Bar */}
+        <div className="fixed top-0 left-0 right-0 h-14 bg-gray-950/90 backdrop-blur-xl border-b border-gray-800/50 z-50 flex items-center justify-between px-4 title-bar">
+          {/* App Title */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
+              <ArrowRightLeft className="w-4 h-4 text-white" />
             </div>
-
-            {/* Quick Status */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    deviceInfo?.isConnected ? "bg-emerald-500" : "bg-red-500"
-                  }`}
-                  style={{
-                    animation: deviceInfo?.isConnected
-                      ? "pulse 2s infinite"
-                      : "none",
-                  }}
-                ></div>
-                <span className="text-xs font-medium">
-                  {deviceInfo?.isConnected ? "Online" : "Offline"}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-                <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-                <span className="text-xs font-medium">
-                  {peers.length} peers
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-                <Clipboard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-                <span className="text-xs font-medium">
-                  {clipboardHistory.length} clips
-                </span>
-              </div>
-            </div>
+            <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600">
+              SyncClip
+            </h1>
           </div>
-        </header>
 
-        {/* Tab Navigation */}
-        <div
-          className={`bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-2 mb-6 border border-gray-200/30 dark:border-gray-700/30 shadow-md transition-all duration-500 transform ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
-          }`}
-          style={{ transitionDelay: "100ms" }}
-        >
-          <div className="flex">
+          {/* Window Controls */}
+          <div className="flex items-center gap-1.5 no-drag">
             <button
-              onClick={() => setActiveTab("main")}
-              className={`flex items-center justify-center gap-1.5 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                activeTab === "main"
-                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
-                  : "hover:bg-gray-200/50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400"
-              }`}
+              onClick={() => window.electronAPI?.minimizeWindow()}
+              className="w-8 h-8 rounded-md bg-gray-800/60 hover:bg-gray-700/60 text-gray-400 hover:text-emerald-400 transition-all duration-200 flex items-center justify-center group hover:scale-105 no-drag"
+              title="Minimize"
             >
-              <Clipboard className="w-4 h-4" />
-              <span>Clipboard</span>
+              <Minus className="w-3.5 h-3.5 group-hover:text-emerald-400 transition-colors" />
             </button>
-
             <button
-              onClick={() => setActiveTab("details")}
-              className={`flex items-center justify-center gap-1.5 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                activeTab === "details"
-                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
-                  : "hover:bg-gray-200/50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400"
-              }`}
+              onClick={() => window.electronAPI?.maximizeWindow()}
+              className="w-8 h-8 rounded-md bg-gray-800/60 hover:bg-gray-700/60 text-gray-400 hover:text-emerald-400 transition-all duration-200 flex items-center justify-center group hover:scale-105 no-drag"
+              title="Maximize"
             >
-              <Network className="w-4 h-4" />
-              <span>Network</span>
+              <Square className="w-3 h-3 group-hover:text-emerald-400 transition-colors" />
             </button>
-
             <button
-              onClick={() => setActiveTab("stats")}
-              className={`flex items-center justify-center gap-1.5 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                activeTab === "stats"
-                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
-                  : "hover:bg-gray-200/50 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-400"
-              }`}
+              onClick={() => window.electronAPI?.closeWindow()}
+              className="w-8 h-8 rounded-md bg-gray-800/60 hover:bg-red-500/80 text-gray-400 hover:text-white transition-all duration-200 flex items-center justify-center group hover:scale-105 no-drag"
+              title="Close"
             >
-              <Activity className="w-4 h-4" />
-              <span>Activity</span>
+              <X className="w-3.5 h-3.5 group-hover:text-white transition-colors" />
             </button>
           </div>
         </div>
+        {/* App Content with top margin for title bar */}
+        <div className="mt-14">
+          {/* Custom Title Bar */}
 
-        {/* Main Content */}
-        {activeTab === "main" && (
+          {/* Main Content */}
           <div
             className={`grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 transition-all duration-500 transform ${
               mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
@@ -600,7 +566,7 @@ const ClipboardSyncApp = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                      <Network className="w-4 h-4" />
+                      <Users className="w-4 h-4" />
                     </div>
                     <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
                       Device Discovery
@@ -671,7 +637,7 @@ const ClipboardSyncApp = () => {
                   ) : (
                     <div className="text-center py-6">
                       <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                        <WifiOff className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <Users className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         No devices found
@@ -931,381 +897,31 @@ const ClipboardSyncApp = () => {
               </div>
             </div>
           </div>
-        )}
 
-        {/* Network Tab Content */}
-        {activeTab === "details" && (
-          <div
-            className={`bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-4 border border-gray-200/30 dark:border-gray-700/30 shadow-lg transition-all duration-500 transform ${
+          {/* Footer */}
+          <footer
+            className={`mt-6 text-center transition-all duration-500 transform ${
               mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
-            style={{ transitionDelay: "200ms" }}
+            style={{ transitionDelay: "300ms" }}
           >
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <Network className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                Network Details
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Connection Status */}
-                <div className="p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Connection Status
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Status
-                      </span>
-                      <span
-                        className={`text-xs font-medium ${
-                          deviceInfo?.isConnected
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-600 dark:text-red-400"
-                        }`}
-                      >
-                        {deviceInfo?.isConnected ? "Connected" : "Disconnected"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Local IP
-                      </span>
-                      <span className="text-xs font-mono text-gray-700 dark:text-gray-300">
-                        {deviceInfo?.localIP || "Unknown"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Connection Type
-                      </span>
-                      <span className="text-xs text-gray-700 dark:text-gray-300">
-                        Peer-to-Peer (WebRTC)
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Encryption
-                      </span>
-                      <span className="text-xs text-gray-700 dark:text-gray-300">
-                        End-to-End Encrypted
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Network Statistics */}
-                <div className="p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Network Statistics
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Connected Peers
-                      </span>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                        {peers.length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Discovered Devices
-                      </span>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                        {discoveredDevices.length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Last Scan
-                      </span>
-                      <span className="text-xs text-gray-700 dark:text-gray-300">
-                        {isScanning ? "In Progress..." : "Just Now"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Auto-Connect
-                      </span>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                        Enabled
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Discovered Devices Table */}
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Discovered Devices
-                  </h3>
-                  <button
-                    onClick={startNetworkScan}
-                    disabled={isScanning}
-                    className="text-xs px-2 py-1 rounded-md bg-emerald-500/90 text-white hover:bg-emerald-600/90 disabled:opacity-50 transition-colors flex items-center gap-1"
-                  >
-                    <RefreshCw
-                      className={`w-3 h-3 ${isScanning ? "animate-spin" : ""}`}
-                    />
-                    {isScanning ? "Scanning..." : "Scan Now"}
-                  </button>
-                </div>
-
-                {isScanning && (
-                  <div className="mb-3 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Scanning network
-                      </span>
-                      <span className="text-gray-700 dark:text-gray-300">
-                        {scanProgress}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${scanProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
-                {discoveredDevices.length > 0 ? (
-                  <div className="overflow-x-auto rounded-lg border border-gray-200/50 dark:border-gray-700/50">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-100/70 dark:bg-gray-800/70">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
-                            Device Name
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
-                            IP Address
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
-                            Type
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white/50 dark:bg-gray-900/50 divide-y divide-gray-200 dark:divide-gray-700">
-                        {discoveredDevices.map((device) => (
-                          <tr
-                            key={device.deviceId}
-                            className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
-                          >
-                            <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                              {getDeviceIcon(device.deviceName)}
-                              {device.deviceName}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300 font-mono">
-                              {device.remoteIP}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">
-                              {device.deviceName.toLowerCase().includes("phone")
-                                ? "Mobile"
-                                : "Desktop"}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-right text-xs">
-                              <button
-                                onClick={() => connectToDevice(device)}
-                                className="px-2 py-1 bg-emerald-500/90 hover:bg-emerald-600/90 text-white rounded-md text-xs transition-colors"
-                              >
-                                Connect
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50">
-                    <WifiOff className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No devices discovered yet
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Use the "Scan Now" button to search for devices on your
-                      network
-                    </p>
-                  </div>
-                )}
+            <div className="bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-2 border border-gray-200/30 dark:border-gray-700/30">
+              <div className="flex items-center justify-center gap-1.5 text-gray-600 dark:text-gray-400">
+                <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
+                <span className="text-xs">
+                  Secure P2P clipboard synchronization
+                </span>
+                <span className="mx-1.5 text-gray-300 dark:text-gray-700">
+                  •
+                </span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-500">
+                  SyncClip
+                </span>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Activity Tab Content */}
-        {activeTab === "stats" && (
-          <div
-            className={`bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-4 border border-gray-200/30 dark:border-gray-700/30 shadow-lg transition-all duration-500 transform ${
-              mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
-            style={{ transitionDelay: "200ms" }}
-          >
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                Activity & Statistics
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-3 bg-emerald-100/70 dark:bg-emerald-900/20 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50">
-                  <h3 className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-1">
-                    Clipboard Items
-                  </h3>
-                  <div className="flex items-end justify-between">
-                    <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                      {clipboardHistory.length}
-                    </span>
-                    <Clipboard className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-blue-100/70 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-                  <h3 className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-1">
-                    Connected Peers
-                  </h3>
-                  <div className="flex items-end justify-between">
-                    <span className="text-2xl font-bold text-blue-700 dark:text-blue-400">
-                      {peers.length}
-                    </span>
-                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-500" />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-purple-100/70 dark:bg-purple-900/20 rounded-lg border border-purple-200/50 dark:border-purple-800/50">
-                  <h3 className="text-xs font-medium text-purple-800 dark:text-purple-300 mb-1">
-                    Discovered Devices
-                  </h3>
-                  <div className="flex items-end justify-between">
-                    <span className="text-2xl font-bold text-purple-700 dark:text-purple-400">
-                      {discoveredDevices.length}
-                    </span>
-                    <Network className="w-5 h-5 text-purple-600 dark:text-purple-500" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Recent Activity
-                </h3>
-
-                <div className="overflow-hidden rounded-lg border border-gray-200/50 dark:border-gray-700/50">
-                  <div className="bg-gray-100/70 dark:bg-gray-800/70 px-3 py-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Clipboard Activity
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Last 24 hours
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[300px] overflow-y-auto">
-                    {clipboardHistory.length > 0 ? (
-                      clipboardHistory.slice(0, 10).map((item, index) => (
-                        <div
-                          key={index}
-                          className="px-3 py-2 bg-white/50 dark:bg-gray-900/50"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span
-                                  className={`w-2 h-2 rounded-full ${
-                                    item.source === "Local Copy"
-                                      ? "bg-emerald-500"
-                                      : "bg-blue-500"
-                                  }`}
-                                ></span>
-                                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                  {item.source}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
-                                {truncateContent(item.content, 60)}
-                              </p>
-                            </div>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
-                              {formatTime(item.timestamp)}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-6 text-center bg-white/50 dark:bg-gray-900/50">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          No recent activity
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Export Options */}
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  onClick={clearClipboardHistory}
-                  className="text-xs px-3 py-1.5 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/30 transition-colors flex items-center gap-1.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Clear History
-                </button>
-                <button
-                  onClick={exportClipboardHistory}
-                  className="text-xs px-3 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 transition-colors flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export Data
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <footer
-          className={`mt-6 text-center transition-all duration-500 transform ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-          style={{ transitionDelay: "300ms" }}
-        >
-          <div className="bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-2 border border-gray-200/30 dark:border-gray-700/30">
-            <div className="flex items-center justify-center gap-1.5 text-gray-600 dark:text-gray-400">
-              <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
-              <span className="text-xs">
-                Secure P2P clipboard synchronization
-              </span>
-              <span className="mx-1.5 text-gray-300 dark:text-gray-700">•</span>
-              <span className="text-xs text-emerald-600 dark:text-emerald-500">
-                SyncClip
-              </span>
-            </div>
-          </div>
-        </footer>
+          </footer>
+        </div>{" "}
+        {/* Close app content wrapper */}
       </div>
     </div>
   );
