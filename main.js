@@ -140,7 +140,7 @@ function startNetworkDiscovery() {
       localIP = networkInfo.localIP;
       console.log("P2P Network started:", networkInfo);
       isConnected = true;
-
+      
       // Update UI
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("network-started", networkInfo);
@@ -160,11 +160,15 @@ function startNetworkDiscovery() {
       console.log("Peer connected:", peerId);
       isConnected = true;
 
+      // Get peer information from the P2P network
+      const peerData = p2pNetwork.peers.get(peerId);
+      const deviceName = peerData ? peerData.deviceName : "Unknown";
+
       // Update UI
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("peer-connected", {
           peerId,
-          deviceName: "Unknown",
+          deviceName: deviceName,
         });
       }
     });
@@ -191,23 +195,29 @@ function startNetworkDiscovery() {
 
 // IPC handlers
 ipcMain.handle("get-device-info", () => {
-  return {
+  const deviceInfo = {
     deviceId,
     deviceName,
     localIP,
     isConnected,
     peerCount: p2pNetwork ? p2pNetwork.getPeerCount() : 0,
   };
+  console.log("get-device-info called, returning:", deviceInfo);
+  return deviceInfo;
 });
 
 ipcMain.handle("get-peers", () => {
   if (p2pNetwork) {
-    return p2pNetwork.getConnectedPeers();
+    const peers = p2pNetwork.getConnectedPeers();
+    console.log("get-peers called, returning:", peers);
+    return peers;
   }
+  console.log("get-peers called, but p2pNetwork not initialized");
   return [];
 });
 
 ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
+  console.log("connect-to-peer called with:", deviceInfo);
   if (p2pNetwork) {
     try {
       p2pNetwork.connectToDevice(deviceInfo);

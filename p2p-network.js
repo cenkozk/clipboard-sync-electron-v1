@@ -32,7 +32,6 @@ class P2PNetwork extends EventEmitter {
 
     this.isRunning = true;
     this.startDiscovery();
-    this.startListening();
 
     console.log(`P2P Network started on ${this.localIP}:${this.port}`);
     this.emit("started", {
@@ -103,13 +102,6 @@ class P2PNetwork extends EventEmitter {
     }
   }
 
-  startListening() {
-    // Listen for incoming peer connections
-    this.on("peer-connect", (peerId, peer) => {
-      this.setupPeerEventHandlers(peerId, peer);
-    });
-  }
-
   broadcastPresence() {
     if (!this.discoverySocket) return;
 
@@ -177,6 +169,9 @@ class P2PNetwork extends EventEmitter {
     // Create peer connection
     const peer = new SimplePeer({ initiator: false, trickle: false });
 
+    // Set up peer event handlers immediately
+    this.setupPeerEventHandlers(data.deviceId, peer);
+
     peer.on("signal", (signal) => {
       // Send connection response with our signal
       const response = {
@@ -193,12 +188,16 @@ class P2PNetwork extends EventEmitter {
 
     peer.on("connect", () => {
       console.log(`Connected to ${data.deviceName} (${data.deviceId})`);
-      this.peers.set(data.deviceId, {
-        peer: peer,
-        deviceName: data.deviceName,
-        localIP: data.localIP,
-        connected: true,
-      });
+      
+      // Update peer data with connected status
+      const peerData = this.peers.get(data.deviceId);
+      if (peerData) {
+        peerData.connected = true;
+        this.peers.set(data.deviceId, peerData);
+        console.log(`Updated peer ${data.deviceId} to connected status`);
+      } else {
+        console.error(`Peer ${data.deviceId} not found in peers map!`);
+      }
 
       this.emit("peer-connect", data.deviceId, peer);
     });
@@ -228,6 +227,9 @@ class P2PNetwork extends EventEmitter {
     // Create peer connection
     const peer = new SimplePeer({ initiator: true, trickle: false });
 
+    // Set up peer event handlers immediately
+    this.setupPeerEventHandlers(deviceInfo.deviceId, peer);
+
     peer.on("signal", (signal) => {
       // Send connection request
       const request = {
@@ -246,12 +248,16 @@ class P2PNetwork extends EventEmitter {
       console.log(
         `Connected to ${deviceInfo.deviceName} (${deviceInfo.deviceId})`
       );
-      this.peers.set(deviceInfo.deviceId, {
-        peer: peer,
-        deviceName: deviceInfo.deviceName,
-        localIP: deviceInfo.localIP,
-        connected: true,
-      });
+      
+      // Update peer data with connected status
+      const peerData = this.peers.get(deviceInfo.deviceId);
+      if (peerData) {
+        peerData.connected = true;
+        this.peers.set(deviceInfo.deviceId, peerData);
+        console.log(`Updated peer ${deviceInfo.deviceId} to connected status`);
+      } else {
+        console.error(`Peer ${deviceInfo.deviceId} not found in peers map!`);
+      }
 
       this.emit("peer-connect", deviceInfo.deviceId, peer);
     });
@@ -350,7 +356,10 @@ class P2PNetwork extends EventEmitter {
 
   getConnectedPeers() {
     const connectedPeers = [];
+    console.log("getConnectedPeers called, total peers stored:", this.peers.size);
+    
     this.peers.forEach((peerData, peerId) => {
+      console.log(`Peer ${peerId}:`, peerData);
       if (peerData.connected) {
         connectedPeers.push({
           id: peerId,
@@ -360,11 +369,19 @@ class P2PNetwork extends EventEmitter {
         });
       }
     });
+    
+    console.log("Returning connected peers:", connectedPeers);
     return connectedPeers;
   }
 
   getPeerCount() {
-    return this.peers.size;
+    let connectedCount = 0;
+    this.peers.forEach((peerData, peerId) => {
+      if (peerData.connected) {
+        connectedCount++;
+      }
+    });
+    return connectedCount;
   }
 
   isConnected() {

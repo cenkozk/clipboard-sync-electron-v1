@@ -1,53 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function NetworkDiscovery() {
   const [isScanning, setIsScanning] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<any[]>([]);
   const [scanProgress, setScanProgress] = useState(0);
+  const [networkStatus, setNetworkStatus] = useState("idle");
+
+  useEffect(() => {
+    // Listen for real device discovery events
+    if (window.electronAPI) {
+      window.electronAPI.onDeviceDiscovered((deviceInfo: any) => {
+        console.log("Real device discovered:", deviceInfo);
+        setDiscoveredDevices(prev => {
+          // Check if device already exists
+          const exists = prev.find(d => d.deviceId === deviceInfo.deviceId);
+          if (!exists) {
+            return [...prev, {
+              deviceId: deviceInfo.deviceId,
+              name: deviceInfo.deviceName,
+              ip: deviceInfo.remoteIP || deviceInfo.localIP,
+              status: "available",
+              ...deviceInfo
+            }];
+          }
+          return prev;
+        });
+      });
+
+      window.electronAPI.onNetworkStarted((networkInfo: any) => {
+        console.log("Network started:", networkInfo);
+        setNetworkStatus("active");
+        setIsScanning(false);
+        setScanProgress(100);
+      });
+    }
+
+    return () => {
+      if (window.electronAPI) {
+        window.electronAPI.removeAllListeners("device-discovered");
+        window.electronAPI.removeAllListeners("network-started");
+      }
+    };
+  }, []);
 
   const startNetworkScan = () => {
     setIsScanning(true);
     setScanProgress(0);
-
-    // Simulate network scanning
+    setNetworkStatus("scanning");
+    
+    // The real network discovery is handled by the P2P network
+    // This just shows progress while waiting for real events
     const interval = setInterval(() => {
       setScanProgress((prev) => {
-        if (prev >= 100) {
+        if (prev >= 90) { // Stop at 90%, let real events complete it
           clearInterval(interval);
-          setIsScanning(false);
-          // Simulate discovered devices
-          setDiscoveredDevices([
-            {
-              id: "1",
-              name: "MacBook-Pro.local",
-              ip: "192.168.1.101",
-              status: "available",
-            },
-            {
-              id: "2",
-              name: "Windows-PC",
-              ip: "192.168.1.102",
-              status: "available",
-            },
-            {
-              id: "3",
-              name: "iPhone.local",
-              ip: "192.168.1.103",
-              status: "available",
-            },
-          ]);
-          return 100;
+          return 90;
         }
         return prev + 10;
       });
     }, 200);
   };
 
-  const connectToDevice = (deviceId: string) => {
-    console.log("Connecting to device:", deviceId);
-    // This would trigger the actual connection logic
+  const connectToDevice = async (deviceInfo: any) => {
+    console.log("Connecting to device:", deviceInfo);
+    
+    if (window.electronAPI) {
+      try {
+        const result = await window.electronAPI.connectToPeer(deviceInfo);
+        if (result.success) {
+          console.log("Connection initiated successfully");
+          // Update device status
+          setDiscoveredDevices(prev => 
+            prev.map(d => 
+              d.deviceId === deviceInfo.deviceId 
+                ? { ...d, status: "connecting" }
+                : d
+            )
+          );
+        } else {
+          console.error("Failed to connect:", result.error);
+        }
+      } catch (error) {
+        console.error("Error connecting to device:", error);
+      }
+    }
+  };
+
+  const getDeviceIcon = (deviceName: string) => {
+    if (deviceName.toLowerCase().includes("mac") || deviceName.toLowerCase().includes("macbook")) {
+      return "🍎";
+    } else if (deviceName.toLowerCase().includes("windows") || deviceName.toLowerCase().includes("pc")) {
+      return "🪟";
+    } else if (deviceName.toLowerCase().includes("iphone") || deviceName.toLowerCase().includes("ipad")) {
+      return "📱";
+    } else if (deviceName.toLowerCase().includes("android")) {
+      return "🤖";
+    }
+    return "💻";
   };
 
   return (
@@ -111,7 +162,9 @@ export default function NetworkDiscovery() {
       {isScanning && (
         <div className="mb-4">
           <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-            <span>Scanning local network...</span>
+            <span>
+              {networkStatus === "scanning" ? "Scanning local network..." : "Network active, discovering devices..."}
+            </span>
             <span>{scanProgress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -127,26 +180,14 @@ export default function NetworkDiscovery() {
       {discoveredDevices.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-700 mb-3">
-            Discovered Devices
+            Discovered Devices ({discoveredDevices.length})
           </h3>
           {discoveredDevices.map((device) => (
-            <div key={device.id} className="device-card">
+            <div key={device.deviceId} className="device-card">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-primary-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
+                  <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center text-lg">
+                    {getDeviceIcon(device.name)}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
@@ -156,10 +197,15 @@ export default function NetworkDiscovery() {
                   </div>
                 </div>
                 <button
-                  onClick={() => connectToDevice(device.id)}
-                  className="btn-sm btn-success"
+                  onClick={() => connectToDevice(device)}
+                  disabled={device.status === "connecting"}
+                  className={`btn-sm ${
+                    device.status === "connecting" 
+                      ? "btn-secondary cursor-not-allowed" 
+                      : "btn-success"
+                  }`}
                 >
-                  Connect
+                  {device.status === "connecting" ? "Connecting..." : "Connect"}
                 </button>
               </div>
             </div>
@@ -179,15 +225,23 @@ export default function NetworkDiscovery() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Discovery Method:</span>
-            <span className="text-gray-900">Automatic P2P</span>
+            <span className="text-gray-900">Real P2P Network</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Security:</span>
             <span className="text-gray-900">End-to-End Encrypted</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Auto-Connect:</span>
-            <span className="text-gray-900">Enabled</span>
+            <span className="text-gray-500">Status:</span>
+            <span className={`font-medium ${
+              networkStatus === "active" ? "text-success-600" : 
+              networkStatus === "scanning" ? "text-warning-600" : 
+              "text-gray-600"
+            }`}>
+              {networkStatus === "active" ? "Active" : 
+               networkStatus === "scanning" ? "Scanning" : 
+               "Idle"}
+            </span>
           </div>
         </div>
       </div>
@@ -211,8 +265,10 @@ export default function NetworkDiscovery() {
           <div className="text-sm text-blue-800">
             <p className="font-medium">Tip:</p>
             <p>
-              Make sure all devices are on the same WiFi network for automatic
-              discovery to work.
+              {networkStatus === "active" 
+                ? "Network is active! Devices will be discovered automatically. Make sure other devices are running the app on the same network."
+                : "Click 'Scan Network' to start discovering devices on your local network. Make sure all devices are on the same WiFi network."
+              }
             </p>
           </div>
         </div>

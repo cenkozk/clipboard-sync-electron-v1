@@ -48,7 +48,24 @@ export default function Home() {
       });
     }
 
+    // Periodic refresh of peers list to ensure UI stays in sync
+    const interval = setInterval(() => {
+      if (window.electronAPI) {
+        window.electronAPI.getPeers().then((newPeers: any[]) => {
+          setPeers(prev => {
+            // Only update if the data actually changed
+            if (JSON.stringify(prev) !== JSON.stringify(newPeers)) {
+              console.log("Peers updated:", newPeers);
+              return newPeers;
+            }
+            return prev;
+          });
+        });
+      }
+    }, 2000); // Refresh every 2 seconds
+
     return () => {
+      clearInterval(interval);
       if (window.electronAPI) {
         window.electronAPI.removeAllListeners("clipboard-changed");
         window.electronAPI.removeAllListeners("clipboard-received");
