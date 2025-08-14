@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "Clipboard Sync - Cross-Platform Clipboard Synchronization",
+  title: "Clipboard Sync - Seamless clipboard synchronization across devices",
   description:
-    "Automatically sync your clipboard across devices on your local network using peer-to-peer connections.",
-  keywords: ["clipboard", "sync", "cross-platform", "p2p", "lan", "electron"],
+    "Secure P2P clipboard synchronization for Windows and macOS devices on your local network",
+  keywords: "clipboard, sync, p2p, webrtc, windows, macos, local network",
 };
 
 export default function RootLayout({
@@ -17,12 +14,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-          {children}
-        </div>
-      </body>
+    <html lang="en" className="scroll-smooth">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

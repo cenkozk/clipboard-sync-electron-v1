@@ -78,7 +78,10 @@ class P2PNetwork extends EventEmitter {
   startDiscovery() {
     try {
       // reuseAddr is important on macOS to properly receive multicast/broadcast
-      this.discoverySocket = dgram.createSocket({ type: "udp4", reuseAddr: true });
+      this.discoverySocket = dgram.createSocket({
+        type: "udp4",
+        reuseAddr: true,
+      });
 
       this.discoverySocket.on("error", (err) => {
         console.error("Discovery socket error:", err);
@@ -102,7 +105,9 @@ class P2PNetwork extends EventEmitter {
           if (typeof this.discoverySocket.setMulticastLoopback === "function") {
             this.discoverySocket.setMulticastLoopback(true);
           }
-          if (typeof this.discoverySocket.setMulticastInterface === "function") {
+          if (
+            typeof this.discoverySocket.setMulticastInterface === "function"
+          ) {
             try {
               this.discoverySocket.setMulticastInterface(this.localIP);
               console.log(`Multicast interface set to ${this.localIP}`);
@@ -122,7 +127,9 @@ class P2PNetwork extends EventEmitter {
           for (const nic of ifaces) {
             try {
               this.discoverySocket.addMembership("224.0.0.1", nic.address);
-              console.log(`Joined multicast 224.0.0.1 on ${nic.name} (${nic.address})`);
+              console.log(
+                `Joined multicast 224.0.0.1 on ${nic.name} (${nic.address})`
+              );
             } catch (e) {
               // Some interfaces may not support multicast; ignore
             }
@@ -165,7 +172,13 @@ class P2PNetwork extends EventEmitter {
 
     // Broadcast to limited broadcast
     try {
-      this.discoverySocket.send(message, 0, message.length, this.port, "255.255.255.255");
+      this.discoverySocket.send(
+        message,
+        0,
+        message.length,
+        this.port,
+        "255.255.255.255"
+      );
       // console.log(`Presence -> 255.255.255.255:${this.port}`);
     } catch (error) {
       console.error("Failed to broadcast presence (limited):", error);
@@ -215,7 +228,9 @@ class P2PNetwork extends EventEmitter {
   }
 
   scanLocalSubnet() {
-    const local = this.getIPv4Interfaces().find((i) => i.address === this.localIP);
+    const local = this.getIPv4Interfaces().find(
+      (i) => i.address === this.localIP
+    );
     if (!local || !local.netmask) return;
 
     const ipParts = local.address.split(".").map((x) => parseInt(x, 10));
