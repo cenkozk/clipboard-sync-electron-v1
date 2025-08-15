@@ -8,6 +8,7 @@ const {
   Menu,
 } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const os = require("os");
 const { v4: uuidv4 } = require("uuid");
 const P2PNetwork = require("./p2p-network");
@@ -65,7 +66,21 @@ function createWindow() {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "renderer/index.html"));
+    // In production, load from the unpacked renderer directory
+    let rendererPath;
+    
+    if (app.isPackaged) {
+      // When packaged, renderer files are unpacked from ASAR
+      rendererPath = path.join(process.resourcesPath, "app.asar.unpacked", "renderer", "index.html");
+    } else {
+      // In development, use local renderer directory
+      rendererPath = path.join(__dirname, "renderer", "index.html");
+    }
+    
+    console.log("Loading renderer from:", rendererPath);
+    console.log("File exists:", fs.existsSync(rendererPath));
+    
+    mainWindow.loadFile(rendererPath);
   }
 
   // Show window when ready
