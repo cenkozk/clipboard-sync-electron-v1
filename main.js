@@ -6,6 +6,7 @@ const {
   clipboard,
 } = require("electron");
 const path = require("path");
+const os = require("os");
 const { v4: uuidv4 } = require("uuid");
 const P2PNetwork = require("./p2p-network");
 
@@ -13,12 +14,16 @@ let mainWindow;
 let clipboardWatcher;
 let p2pNetwork;
 let deviceId = uuidv4();
-let deviceName = require("os").hostname();
+let deviceName = os.hostname();
 let localIP = "127.0.0.1";
 let isConnected = false;
+let platform = os.platform();
 
 // Create the main browser window
 function createWindow() {
+  // Platform-specific window configuration
+  // macOS: hiddenInset titleBarStyle, no frame, no thickFrame (native traffic light buttons)
+  // Windows/Linux: hidden titleBarStyle, frame enabled, thickFrame enabled (custom controls)
   mainWindow = new BrowserWindow({
     width: 400,
     height: 700,
@@ -34,18 +39,18 @@ function createWindow() {
     icon: path.join(__dirname, "assets/icon.png"),
     title: "Clipboard Sync",
     backgroundColor: "#0a0a0a", // Dark background matching app's bg-950
-    titleBarStyle: "hidden",
+    titleBarStyle: platform === "darwin" ? "hiddenInset" : "hidden",
     vibrancy: "under-window",
     visualEffectState: "active",
     show: false, // Don't show until ready
-    frame: true, // Restore frame for rounded corners
+    frame: platform !== "darwin", // No frame for macOS, frame for others
     transparent: false,
     resizable: true,
     minimizable: true,
-    maximizable: true,
-    fullscreenable: true,
+    maximizable: platform !== "darwin", // Disable maximize on macOS
+    fullscreenable: platform !== "darwin", // Disable fullscreen on macOS
     hasShadow: true,
-    thickFrame: true,
+    thickFrame: platform !== "darwin",
     roundedCorners: true,
   });
 
@@ -247,6 +252,7 @@ ipcMain.handle("get-device-info", () => {
     localIP,
     isConnected,
     peerCount: p2pNetwork ? p2pNetwork.getPeerCount() : 0,
+    platform,
   };
   console.log("get-device-info called, returning:", deviceInfo);
   return deviceInfo;
