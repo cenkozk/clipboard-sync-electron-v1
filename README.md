@@ -1,122 +1,106 @@
 # SyncClip - P2P Clipboard Sync
 
-**Sync your clipboard across devices instantly using peer-to-peer connections on your local network.**
+Because copying and pasting between devices shouldn't be this hard in 2025.
 
-## 🎯 **Ready to Use - No Setup Required!**
+## What's this thing do?
 
-**Download and run immediately:**
+Ever been coding on your laptop, found some perfect Stack Overflow snippet, but needed it on your desktop? Yeah, me too. This little app syncs your clipboard across devices using good old peer-to-peer networking. No cloud nonsense, no privacy concerns, just your devices talking to each other on your local network.
 
-- **Windows**: `SyncClip.exe` - Just run the executable
-- **macOS**: `SyncClip.app` - Drag to Applications folder
-- **Linux**: `SyncClip.AppImage` - Make executable and run
+## Just want it to work? Download and run
 
-## ✨ What It Does
+- **Windows**: Grab `SyncClip.exe` and double-click it
+- **macOS**: Download `SyncClip.app`, drag to Applications, probably right-click → Open first time (thanks, Gatekeeper)
+- **Linux**: Get `SyncClip.AppImage`, `chmod +x` it, then `./SyncClip.AppImage`
 
-- **Auto-discovers** devices on your WiFi
-- **Instantly syncs** clipboard content between devices
-- **Works offline** - no internet required
-- **Private & secure** - data never leaves your network
+That's it. Seriously.
 
-## 🚀 Quick Start
+## The technical stuff (because you're probably curious)
 
-### 🎯 **For End Users (Recommended)**
+Built this with Electron because I needed it to work everywhere and didn't want to write three separate apps. Uses WebRTC for the actual P2P communication and UDP broadcasts for device discovery. React frontend because, well, it's 2025.
 
-**Download the executable for your platform and run immediately - no setup needed!**
+**Stack:**
 
-### 🔧 **For Developers**
+- Electron + React + TypeScript (the holy trinity)
+- Tailwind for styling (fight me)
+- WebRTC for peer connections
+- UDP broadcasts for "hey, anyone else running this thing?"
+
+## How to use it
+
+1. Run the app on whatever devices you want to sync
+2. Hit "Scan Network" - it'll find other instances automatically
+3. Click connect on the devices you find
+4. Copy something. Watch it magically appear on your other devices.
+5. Feel slightly less annoyed at technology
+
+## Developer setup
 
 ```bash
-git clone <repository-url>
+git clone <your-repo-url-here>
 cd clipboard-sync-electron-v1
 npm install
 npm run dev
 ```
 
-### 📦 **Build for Distribution**
+Want to build your own executables?
 
 ```bash
-# Windows (.exe)
-npm run build:win
-
-# macOS (.dmg)
-npm run build:mac
-
-# Linux (.AppImage)
-npm run build:linux
+npm run build:win    # Windows .exe
+npm run build:mac    # macOS .dmg
+npm run build:linux  # Linux .AppImage
 ```
 
-## 💻 How to Use
+## Features that actually matter
 
-1. **Run the app** on each device you want to sync
-2. **Scan network** to discover other devices
-3. **Click connect** to establish sync
-4. **Copy anything** - it syncs automatically!
+- **Cross-platform** - Works on the big three OSes
+- **Local network only** - Your data doesn't leave your WiFi
+- **System tray integration** - Runs in background, stays out of your way
+- **Clipboard history** - See what you copied recently
+- **Global shortcut** - Ctrl+Shift+H (or Cmd+Shift+H on Mac) to show/hide
+- **Actually works** - Tested with my setup, YMMV
 
-## 🔧 Requirements
+## When stuff breaks (and it probably will)
 
-- Node.js 18+
-- Devices on same WiFi network
-- Firewall allows local network access
+**Can't find other devices?**
 
-## 🎯 Features
-
-- **Cross-platform**: Windows, macOS, Linux
-- **Real-time sync**: Instant clipboard sharing
-- **Smart discovery**: Finds devices automatically
-- **Clipboard history**: Track your copied items
-- **System tray**: Runs in background
-- **Global shortcuts**: Quick access
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React + Next.js + TypeScript
-- **Desktop**: Electron
-- **Styling**: Tailwind CSS
-- **Networking**: WebRTC P2P
-- **Discovery**: UDP broadcast
-
-## 📱 Usage Tips
-
-- **Global shortcut**: `Ctrl+Shift+H` to show/hide
-- **System tray**: Right-click for options
-- **Manual connect**: Use IP address if auto-discovery fails
-- **Background mode**: App continues syncing when minimized
-
-## 🐛 Common Issues
-
-**Devices not found?**
-
-- Check firewall settings
-- Ensure same WiFi network
-- Try manual connection
+- Your firewall is probably blocking it. Allow the app through.
+- Make sure everything's on the same WiFi network
+- Try the manual connect option with the IP address
 
 **Clipboard not syncing?**
 
-- Verify devices are connected
-- Check clipboard permissions
-- Restart app on all devices
+- Check if the devices actually connected (should show in the UI)
+- On macOS, you might need to grant clipboard permissions
+- Windows sometimes gets weird - try running as admin once
+- When in doubt, restart the app
 
-## 📁 Project Structure
+**Still broken?**
+
+- Check the console for errors (Ctrl+Shift+I / Cmd+Option+I)
+- File an issue with actual details, not just "doesn't work"
+
+## Project structure (for the curious)
 
 ```
-├── app/           # React components
-├── main.js        # Electron main process
-├── p2p-network.js # P2P networking
-├── preload.js     # Electron preload
-└── assets/        # App icons
+├── app/           # React components and pages
+├── main.js        # Electron main process (the important stuff)
+├── p2p-network.js # WebRTC and networking logic
+├── preload.js     # Bridge between main and renderer
+└── assets/        # Icons and stuff
 ```
 
-## 🤝 Contributing
+## Contributing
 
-1. Fork the repo
-2. Create feature branch
-3. Make changes
-4. Submit PR
+Got ideas? Cool. Fork it, make it better, send a PR. Just try to:
 
-## 📄 License
+- Keep the code readable
+- Test your changes on more than just your machine
+- Don't break existing functionality (please)
 
-MIT License - see LICENSE file
+## License
+
+MIT - basically do whatever you want with it. I just ask that you don't blame me if it breaks something important.
 
 ---
 
-**Note**: Local network only. No cloud sync or external servers.
+**P.S. - This only works on your local network. No cloud, no external servers, no tracking. Your paranoid security friend can chill.**
