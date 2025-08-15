@@ -628,6 +628,27 @@ class P2PNetwork extends EventEmitter {
     this.broadcastPresence();
     this.improvedDiscovery();
   }
+  
+  // New method to stop discovery
+  stopDiscovery() {
+    console.log("Stopping device discovery...");
+    // Clear the presence interval to stop broadcasting
+    if (this.presenceInterval) {
+      clearInterval(this.presenceInterval);
+      this.presenceInterval = null;
+    }
+    
+    // Close the discovery socket to stop receiving broadcasts
+    if (this.discoverySocket) {
+      try {
+        this.discoverySocket.close();
+        this.discoverySocket = null;
+        console.log("Discovery socket closed");
+      } catch (error) {
+        console.error("Error closing discovery socket:", error);
+      }
+    }
+  }
 
   // New method to test all peer connections
   testAllPeerConnections() {

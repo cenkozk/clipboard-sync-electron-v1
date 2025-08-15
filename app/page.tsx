@@ -196,25 +196,48 @@ const ClipboardSyncApp = () => {
     }
   };
 
+  const [discoveryCountdown, setDiscoveryCountdown] = useState<number | null>(null);
+
   const startNetworkScan = () => {
     setIsScanning(true);
     setScanProgress(0);
+    setDiscoveryCountdown(5); // 5 second countdown
 
-    // Use the new refresh discovery API
+    // Use the refresh discovery API
     if (window.electronAPI) {
       window.electronAPI.refreshDiscovery();
     }
 
-    const interval = setInterval(() => {
+    // Progress bar animation
+    const progressInterval = setInterval(() => {
       setScanProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
+          clearInterval(progressInterval);
           return 100;
         }
         return prev + 5;
       });
     }, 100);
+    
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setDiscoveryCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownInterval);
+          clearInterval(progressInterval);
+          setIsScanning(false);
+          setDiscoveryCountdown(null);
+          
+          // Stop discovery to reduce network overhead
+          if (window.electronAPI) {
+            window.electronAPI.stopDiscovery();
+          }
+          
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const connectToDevice = async (device: DiscoveredDevice) => {
@@ -726,7 +749,9 @@ const ClipboardSyncApp = () => {
                             disabled={isScanning}
                             className="text-xs px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 disabled:opacity-50 transition-colors"
                           >
-                            {isScanning ? "Scanning..." : "Scan Network"}
+                            {isScanning 
+                              ? (discoveryCountdown !== null ? `Scanning (${discoveryCountdown}s)` : "Scanning...") 
+                              : "5s Auto-Discovery"}
                           </button>
                         </div>
                       </div>

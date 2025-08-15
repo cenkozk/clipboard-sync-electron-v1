@@ -4,11 +4,15 @@ const {
   ipcMain,
   globalShortcut,
   clipboard,
+  Tray,
+  Menu,
 } = require("electron");
 const path = require("path");
 const os = require("os");
 const { v4: uuidv4 } = require("uuid");
 const P2PNetwork = require("./p2p-network");
+const Store = require("electron-store");
+const store = new Store();
 
 let mainWindow;
 let clipboardWatcher;
@@ -19,6 +23,41 @@ let localIP = "127.0.0.1";
 let isConnected = false;
 let platform = os.platform();
 let clipboardMonitoringInitialized = false; // Flag to prevent multiple initializations
+let lastReceivedClipboardContent = ""; // Track last received clipboard content to prevent duplicates
+let tray = null; // System tray instance
+
+// Create the system tray
+function createTray() {
+  const iconPath = path.join(__dirname, "assets/icon.png");
+  tray = new Tray(iconPath);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show App",
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip("Clipboard Sync");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("click", () => {
+    if (mainWindow) {
+      mainWindow.show();
+    }
+  });
+}
 
 // Create the main browser window
 function createWindow() {
@@ -72,6 +111,12 @@ function createWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // Handle minimize event - hide to tray instead
+  mainWindow.on("minimize", (event) => {
+    event.preventDefault();
+    mainWindow.hide();
+  });
 }
 
 // Initialize clipboard monitoring
@@ -88,6 +133,7 @@ function initClipboardMonitoring() {
   }
 
   let lastClipboardContent = "";
+  let lastLocalClipboardContent = ""; // Track last local clipboard content for UI updates
 
   clipboardWatcher = setInterval(() => {
     try {
@@ -108,12 +154,16 @@ function initClipboardMonitoring() {
           broadcastClipboardChange(currentContent);
         }
 
-        // Update UI
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("clipboard-changed", {
-            content: currentContent,
-            timestamp: new Date().toISOString(),
-          });
+        // Only update UI if content is different from last local update
+        if (currentContent !== lastLocalClipboardContent) {
+          lastLocalClipboardContent = currentContent;
+          // Update UI
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("clipboard-changed", {
+              content: currentContent,
+              timestamp: new Date().toISOString(),
+            });
+          }
         }
       }
     } catch (error) {
@@ -149,10 +199,19 @@ function handleClipboardUpdate(data) {
     // Don't update if it's from ourselves
     if (senderId === deviceId) return;
 
+    // Don't update if we already have the same content
+    if (content === lastReceivedClipboardContent) {
+      console.log(`Ignoring duplicate clipboard content from ${senderName}`);
+      return;
+    }
+
     console.log(
       `Received clipboard from ${senderName}:`,
       content.substring(0, 50) + "..."
     );
+
+    // Update last received content
+    lastReceivedClipboardContent = content;
 
     // Update local clipboard
     clipboard.writeText(content);
@@ -343,6 +402,29 @@ ipcMain.handle("disconnect-from-peer", async (event, peerId) => {
   return { success: false, error: "P2P network not initialized" };
 });
 
+ipcMain.handle("stop-discovery", () => {
+  console.log("stop-discovery called");
+  if (p2pNetwork) {
+    try {
+      p2pNetwork.stopDiscovery();
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to stop discovery:", error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
+ipcMain.handle("show-from-tray", () => {
+  console.log("show-from-tray called");
+  if (mainWindow) {
+    mainWindow.show();
+    return { success: true };
+  }
+  return { success: false, error: "Main window not initialized" };
+});
+
 // Optional: expose a simple diagnostic to test peer connectivity states
 ipcMain.handle("test-peer-connections", () => {
   if (p2pNetwork && typeof p2pNetwork.testAllPeerConnections === "function") {
@@ -384,6 +466,7 @@ ipcMain.handle("read-clipboard", async () => {
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
+  createTray();
   initClipboardMonitoring();
   startNetworkDiscovery();
 
