@@ -117,12 +117,24 @@ const ClipboardSyncApp = () => {
       // Clipboard events
       window.electronAPI.onClipboardChanged((data: any) => {
         console.log("Clipboard changed:", data);
-        setClipboardHistory((prev) => [data, ...prev.slice(0, 19)]);
+        setClipboardHistory((prev) => {
+          // Check if the last item is the same content to prevent duplicates
+          if (prev.length > 0 && prev[0].content === data.content) {
+            return prev; // Don't add duplicate
+          }
+          return [data, ...prev.slice(0, 19)];
+        });
       });
 
       window.electronAPI.onClipboardReceived((data: any) => {
         console.log("Clipboard received:", data);
-        setClipboardHistory((prev) => [data, ...prev.slice(0, 19)]);
+        setClipboardHistory((prev) => {
+          // Check if the last item is the same content to prevent duplicates
+          if (prev.length > 0 && prev[0].content === data.content) {
+            return prev; // Don't add duplicate
+          }
+          return [data, ...prev.slice(0, 19)];
+        });
       });
 
       // Network events
@@ -202,26 +214,30 @@ const ClipboardSyncApp = () => {
   const connectToDevice = async (device: DiscoveredDevice) => {
     if (window.electronAPI) {
       // Check if we're already connected to this peer
-      const existingPeer = peers.find(peer => peer.id === device.deviceId);
+      const existingPeer = peers.find((peer) => peer.id === device.deviceId);
       if (existingPeer?.connected) {
         console.log("Already connected to:", device.deviceName);
         return;
       }
-      
+
       // Update connecting state
-      setPeers(prev => prev.map(p => 
-        p.id === device.deviceId ? { ...p, connecting: true } : p
-      ));
-      
+      setPeers((prev) =>
+        prev.map((p) =>
+          p.id === device.deviceId ? { ...p, connecting: true } : p
+        )
+      );
+
       try {
         await window.electronAPI.connectToPeer(device);
         console.log("Connection initiated to:", device.deviceName);
       } catch (error) {
         console.error("Failed to connect:", error);
         // Reset connecting state on error
-        setPeers(prev => prev.map(p => 
-          p.id === device.deviceId ? { ...p, connecting: false } : p
-        ));
+        setPeers((prev) =>
+          prev.map((p) =>
+            p.id === device.deviceId ? { ...p, connecting: false } : p
+          )
+        );
       }
     }
   };
@@ -475,16 +491,16 @@ const ClipboardSyncApp = () => {
       >
         {/* Custom Title Bar */}
         <div
-          className={`fixed top-0 left-0 right-0 h-14 bg-gray-950/90 backdrop-blur-xl border-b border-gray-800/50 z-50 flex items-center px-4 title-bar ${
+          className={`fixed top-0 left-0 right-0 h-12 bg-gray-950/90 backdrop-blur-xl border-b rounded-b-2xl border-gray-800/50 z-50 flex items-center px-3 py-2 title-bar ${
             isMacOS ? "macos" : "windows"
           }`}
         >
           {/* App Title - Left side for Windows/Linux, Right side for macOS */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
               <ArrowRightLeft className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600">
+            <h1 className="text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600">
               SyncClip
             </h1>
           </div>
@@ -511,9 +527,9 @@ const ClipboardSyncApp = () => {
         </div>
 
         {/* App Content with top margin for title bar */}
-        <div className="mt-14">
+        <div className="mt-12">
           {/* Tabs Section */}
-          <div className="mb-6">
+          <div className="mb-4">
             <div className="flex items-center justify-center bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl border border-gray-200/30 dark:border-gray-700/30 shadow-lg p-1">
               <div className="flex w-full max-w-md relative">
                 {/* Tab Background Indicator */}
@@ -560,9 +576,9 @@ const ClipboardSyncApp = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              exit={{ opacity: 0, y: -0 }}
               transition={{ duration: 0.2 }}
               className={`grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 transition-all duration-500 transform ${
                 mounted
@@ -738,11 +754,15 @@ const ClipboardSyncApp = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  {peers.find(peer => peer.id === device.deviceId)?.connected ? (
+                                  {peers.find(
+                                    (peer) => peer.id === device.deviceId
+                                  )?.connected ? (
                                     <span className="ml-2 text-[10px] px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md font-medium">
                                       Connected
                                     </span>
-                                  ) : peers.find(peer => peer.id === device.deviceId)?.connecting ? (
+                                  ) : peers.find(
+                                      (peer) => peer.id === device.deviceId
+                                    )?.connecting ? (
                                     <span className="ml-2 text-[10px] px-2 py-1 bg-emerald-500 text-white rounded-md font-medium flex items-center">
                                       <RefreshCw className="w-2 h-2 mr-1 animate-spin" />
                                       Connecting...
@@ -821,12 +841,12 @@ const ClipboardSyncApp = () => {
                   <div className="lg:col-span-2 space-y-4 sm:space-y-6">
                     {/* Connected Peers Card */}
                     <div className="bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl p-4 border border-gray-200/30 dark:border-gray-700/30 shadow-lg">
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                          <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                             <Users className="w-4 h-4" />
                           </div>
-                          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                             Connected Peers
                           </h2>
                         </div>
@@ -852,51 +872,61 @@ const ClipboardSyncApp = () => {
                       </div>
 
                       {peers.length === 0 ? (
-                        <div className="text-center py-8">
-                          <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                            <Users className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <div className="text-center py-6">
+                          <div className="w-10 h-10 mx-auto mb-2 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                            <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                           </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             No peers connected
                           </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
                             Discover and connect to devices on your network
                           </p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
                           {peers.map((peer) => (
                             <div
                               key={peer.id}
-                              className="p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md"
+                              className="flex items-center justify-between p-2.5 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md hover:bg-gray-150/80 dark:hover:bg-gray-750/80"
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-2 h-2 rounded-full ${
-                                      peer.connected
-                                        ? "bg-emerald-500"
-                                        : "bg-red-500"
-                                    }`}
-                                    style={{
-                                      animation: peer.connected
-                                        ? "pulse 2s infinite"
-                                        : "none",
-                                    }}
-                                  ></div>
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200">
-                                      {peer.deviceName}
-                                    </p>
-                                    {peer.localIP && (
-                                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                                        {peer.localIP}
-                                      </p>
-                                    )}
-                                  </div>
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                {/* Status indicator */}
+                                <div
+                                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                    peer.connected
+                                      ? "bg-emerald-500"
+                                      : "bg-red-500"
+                                  }`}
+                                  style={{
+                                    animation: peer.connected
+                                      ? "pulse 2s infinite"
+                                      : "none",
+                                  }}
+                                ></div>
+
+                                {/* Device icon */}
+                                <div className="w-5 h-5 flex-shrink-0 text-gray-500 dark:text-gray-400">
+                                  {getDeviceIcon(peer.deviceName)}
                                 </div>
+
+                                {/* Device info */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                                    {peer.deviceName}
+                                  </p>
+                                  {peer.localIP && (
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                      {peer.localIP}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Status badge and action */}
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                  className={`text-[10px] px-2 py-0.5 rounded-full ${
                                     peer.connected
                                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                       : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -906,15 +936,14 @@ const ClipboardSyncApp = () => {
                                     ? "Connected"
                                     : "Disconnected"}
                                 </span>
-                              </div>
 
-                              <div className="flex justify-end">
                                 {peer.connected && (
-                                  <button 
+                                  <button
                                     onClick={() => disconnectPeer(peer.id)}
-                                    className="text-[10px] text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-3 rounded border border-red-200 dark:border-red-800 transition-colors"
+                                    className="p-1.5 text-red-500 dark:text-red-400 hover:text-white hover:bg-red-500 dark:hover:bg-red-500 rounded-md transition-all duration-200 flex items-center justify-center"
+                                    title="Disconnect"
                                   >
-                                    Disconnect
+                                    <X className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>

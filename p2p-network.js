@@ -560,6 +560,32 @@ class P2PNetwork extends EventEmitter {
   isConnected() {
     return this.peers.size > 0;
   }
+
+  disconnectFromPeer(peerId) {
+    const peerData = this.peers.get(peerId);
+    if (!peerData) {
+      console.log(`Peer ${peerId} not found`);
+      return false;
+    }
+
+    try {
+      // Destroy the peer connection
+      if (peerData.peer && peerData.peer.destroy) {
+        peerData.peer.destroy();
+      }
+
+      // Remove from peers map
+      this.peers.delete(peerId);
+
+      console.log(`Peer ${peerId} disconnected and removed`);
+      this.emit("peer-disconnect", peerId);
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to disconnect peer ${peerId}:`, error);
+      return false;
+    }
+  }
 }
 
 module.exports = P2PNetwork;

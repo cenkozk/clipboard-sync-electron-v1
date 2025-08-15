@@ -282,6 +282,20 @@ ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
   return { success: false, error: "P2P network not initialized" };
 });
 
+ipcMain.handle("disconnect-from-peer", async (event, peerId) => {
+  console.log("disconnect-from-peer called with:", peerId);
+  if (p2pNetwork) {
+    try {
+      p2pNetwork.disconnectFromPeer(peerId);
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to disconnect from peer:", error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
 // Optional: expose a simple diagnostic to test peer connectivity states
 ipcMain.handle("test-peer-connections", () => {
   if (p2pNetwork && typeof p2pNetwork.testAllPeerConnections === "function") {
