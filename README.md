@@ -15,7 +15,7 @@ Ever been coding on your laptop, found some perfect Stack Overflow snippet, but 
 
 - **Windows**: Grab `SyncClip.exe` and double-click it
 - **macOS**: Download `SyncClip.app`, drag to Applications, probably right-click → Open first time (thanks, Gatekeeper)
-- **Linux**: Get `SyncClip.AppImage`, `chmod +x` it, then `./SyncClip.AppImage`
+- **Linux**: Get `SyncClip.AppImage`, `chmod +x` it, then `./SyncClip.AppImage` (I simply just forgot to build the linux version)
 
 That's it. Seriously.
 
@@ -41,7 +41,7 @@ Built this with Electron because I needed it to work everywhere and didn't want 
 ## Developer setup
 
 ```bash
-git clone <your-repo-url-here>
+git clone <copy the url from the top>
 cd clipboard-sync-electron-v1
 npm install
 npm run dev
