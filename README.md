@@ -1,197 +1,122 @@
-# Clipboard Sync - Cross-Platform P2P Synchronization
+# SyncClip - P2P Clipboard Sync
 
-A powerful cross-platform clipboard synchronization application that automatically syncs your clipboard across devices on your local network using peer-to-peer connections.
+**Sync your clipboard across devices instantly using peer-to-peer connections on your local network.**
 
-## 🚀 Features
+## 🎯 **Ready to Use - No Setup Required!**
 
-- **Cross-Platform Support**: Works on Windows, macOS, and Linux
-- **Automatic Discovery**: Automatically detects devices on your LAN
-- **Peer-to-Peer**: Direct device-to-device connections for fast, secure sync
-- **Real-time Sync**: Instant clipboard synchronization across all connected devices
-- **Local Network Only**: Secure, private synchronization within your LAN
-- **Modern UI**: Beautiful, responsive interface built with React and Tailwind CSS
-- **Clipboard History**: Track and manage your clipboard history
-- **Device Management**: View and manage connected peer devices
+**Download and run immediately:**
 
-## 🛠️ Technology Stack
+- **Windows**: `SyncClip.exe` - Just run the executable
+- **macOS**: `SyncClip.app` - Drag to Applications folder
+- **Linux**: `SyncClip.AppImage` - Make executable and run
 
-- **Frontend**: React 18 + Next.js 14 + TypeScript
-- **Styling**: Tailwind CSS
-- **Desktop App**: Electron
-- **P2P Networking**: Simple Peer + Node DataChannel
-- **Clipboard Access**: Clipboardy (cross-platform clipboard library)
-- **Network Discovery**: Automatic LAN device detection
+## ✨ What It Does
 
-## 📋 Prerequisites
+- **Auto-discovers** devices on your WiFi
+- **Instantly syncs** clipboard content between devices
+- **Works offline** - no internet required
+- **Private & secure** - data never leaves your network
 
-- Node.js 18+
-- npm or yarn
-- Git
+## 🚀 Quick Start
 
-## 🚀 Installation & Setup
+### 🎯 **For End Users (Recommended)**
 
-### 1. Clone the Repository
+**Download the executable for your platform and run immediately - no setup needed!**
+
+### 🔧 **For Developers**
 
 ```bash
 git clone <repository-url>
 cd clipboard-sync-electron-v1
-```
-
-### 2. Install Dependencies
-
-```bash
 npm install
-```
-
-### 3. Development Mode
-
-```bash
-# Start the development server
 npm run dev
 ```
 
-This will:
-
-- Start the Next.js development server on port 3000
-- Launch the Electron app
-- Open the app window
-
-### 4. Build for Production
+### 📦 **Build for Distribution**
 
 ```bash
-# Build the Next.js app
-npm run build
+# Windows (.exe)
+npm run build:win
 
-# Build the Electron app
-npm run electron:build
+# macOS (.dmg)
+npm run build:mac
+
+# Linux (.AppImage)
+npm run build:linux
 ```
 
-## 🔧 Configuration
+## 💻 How to Use
 
-### Environment Variables
+1. **Run the app** on each device you want to sync
+2. **Scan network** to discover other devices
+3. **Click connect** to establish sync
+4. **Copy anything** - it syncs automatically!
 
-Create a `.env.local` file in the root directory:
+## 🔧 Requirements
 
-```env
-NODE_ENV=development
+- Node.js 18+
+- Devices on same WiFi network
+- Firewall allows local network access
+
+## 🎯 Features
+
+- **Cross-platform**: Windows, macOS, Linux
+- **Real-time sync**: Instant clipboard sharing
+- **Smart discovery**: Finds devices automatically
+- **Clipboard history**: Track your copied items
+- **System tray**: Runs in background
+- **Global shortcuts**: Quick access
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React + Next.js + TypeScript
+- **Desktop**: Electron
+- **Styling**: Tailwind CSS
+- **Networking**: WebRTC P2P
+- **Discovery**: UDP broadcast
+
+## 📱 Usage Tips
+
+- **Global shortcut**: `Ctrl+Shift+H` to show/hide
+- **System tray**: Right-click for options
+- **Manual connect**: Use IP address if auto-discovery fails
+- **Background mode**: App continues syncing when minimized
+
+## 🐛 Common Issues
+
+**Devices not found?**
+
+- Check firewall settings
+- Ensure same WiFi network
+- Try manual connection
+
+**Clipboard not syncing?**
+
+- Verify devices are connected
+- Check clipboard permissions
+- Restart app on all devices
+
+## 📁 Project Structure
+
 ```
-
-### Network Configuration
-
-The app automatically detects your local network and discovers other devices. Make sure:
-
-1. All devices are on the same WiFi network
-2. Firewall allows the app to communicate on the local network
-3. Network discovery is enabled on your system
-
-## 📱 Usage
-
-### Starting the App
-
-1. Run the app on each device you want to sync
-2. The app will automatically scan your local network
-3. Discovered devices will appear in the "Network Discovery" section
-4. Click "Connect" to establish a P2P connection
-5. Your clipboard will automatically sync across all connected devices
-
-### Manual Connection
-
-If automatic discovery doesn't work:
-
-1. Click "Add Peer Manually" in the Connected Peers section
-2. Enter the device's IP address or hostname
-3. Click "Connect"
-
-### Global Shortcuts
-
-- `Ctrl+Shift+V` (Windows/Linux) or `Cmd+Shift+V` (macOS): Toggle clipboard sync
-
-## 🏗️ Project Structure
-
-```
-clipboard-sync-electron-v1/
-├── app/                    # Next.js app directory
-│   ├── components/        # React components
-│   ├── globals.css        # Global styles
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Main page
-├── components/            # Shared components
-├── main.js               # Electron main process
-├── preload.js            # Electron preload script
-├── package.json          # Dependencies and scripts
-├── next.config.js        # Next.js configuration
-├── tailwind.config.js    # Tailwind CSS configuration
-├── tsconfig.json         # TypeScript configuration
-└── README.md             # This file
-```
-
-## 🔒 Security Features
-
-- **End-to-End Encryption**: All clipboard data is encrypted between devices
-- **Local Network Only**: No data leaves your local network
-- **Peer-to-Peer**: Direct connections without central servers
-- **No Cloud Storage**: Your clipboard data stays private
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Devices not discovered**
-
-   - Ensure all devices are on the same WiFi network
-   - Check firewall settings
-   - Try manual connection with IP address
-
-2. **Clipboard not syncing**
-
-   - Verify devices are connected
-   - Check clipboard permissions
-   - Restart the app on all devices
-
-3. **Connection errors**
-   - Check network connectivity
-   - Verify no antivirus is blocking the app
-   - Try disabling VPN if active
-
-### Debug Mode
-
-Enable debug logging by running:
-
-```bash
-DEBUG=* npm run dev
+├── app/           # React components
+├── main.js        # Electron main process
+├── p2p-network.js # P2P networking
+├── preload.js     # Electron preload
+└── assets/        # App icons
 ```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+1. Fork the repo
+2. Create feature branch
+3. Make changes
+4. Submit PR
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Electron team for the desktop app framework
-- Next.js team for the React framework
-- Tailwind CSS team for the utility-first CSS framework
-- Simple Peer for P2P networking capabilities
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the troubleshooting section above
-2. Search existing issues on GitHub
-3. Create a new issue with detailed information
-
-## 🔄 Updates
-
-The app will automatically check for updates when connected to the internet. You can also manually check for updates in the app settings.
+MIT License - see LICENSE file
 
 ---
 
-**Note**: This app is designed for local network use only. It does not sync with cloud services or external servers.
+**Note**: Local network only. No cloud sync or external servers.
