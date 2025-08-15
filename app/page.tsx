@@ -40,6 +40,8 @@ declare global {
       disconnectFromPeer: (peerId: string) => Promise<void>;
       refreshDiscovery: () => Promise<void>;
       stopDiscovery: () => Promise<void>;
+      testPeerConnections: () => Promise<any>;
+      testNetworkConnectivity: () => Promise<any>;
       onClipboardChanged: (callback: (data: any) => void) => void;
       onClipboardReceived: (callback: (data: any) => void) => void;
       onNetworkStarted: (callback: (data: any) => void) => void;
@@ -273,16 +275,47 @@ const ClipboardSyncApp = () => {
           setIsScanning(false);
           setDiscoveryCountdown(null);
 
-          // Stop discovery to reduce network overhead
-          if (window.electronAPI) {
-            window.electronAPI.stopDiscovery();
-          }
-
+          // Don't stop discovery immediately - let it run for a bit longer to catch late responses
+          // Discovery will continue running in the background for better device discovery
+          console.log("Scan completed, discovery continues running");
+          
           return null;
         }
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const testNetworkConnectivity = async () => {
+    if (window.electronAPI) {
+      try {
+        console.log("Testing network connectivity...");
+        await window.electronAPI.testNetworkConnectivity();
+      } catch (error) {
+        console.error("Failed to test network connectivity:", error);
+      }
+    }
+  };
+
+  const manualRefreshDiscovery = async () => {
+    if (window.electronAPI) {
+      try {
+        console.log("Manually refreshing discovery...");
+        await window.electronAPI.refreshDiscovery();
+        // Wait a bit for responses
+        setTimeout(async () => {
+          try {
+            const devices = await window.electronAPI.getDiscoveredDevices();
+            setDiscoveredDevices(devices);
+            console.log(`Manual refresh found ${devices.length} devices`);
+          } catch (error) {
+            console.error("Failed to get discovered devices after manual refresh:", error);
+          }
+        }, 2000);
+      } catch (error) {
+        console.error("Failed to refresh discovery:", error);
+      }
+    }
   };
 
   const connectToDevice = async (device: DiscoveredDevice) => {
@@ -799,6 +832,18 @@ const ClipboardSyncApp = () => {
                                 ? `Scanning (${discoveryCountdown}s)`
                                 : "Scanning..."
                               : "5s Auto-Discovery"}
+                          </button>
+                          <button
+                            onClick={testNetworkConnectivity}
+                            className="text-xs px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
+                          >
+                            Test Network
+                          </button>
+                          <button
+                            onClick={manualRefreshDiscovery}
+                            className="text-xs px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/30 transition-colors"
+                          >
+                            Manual Refresh
                           </button>
                         </div>
                       </div>

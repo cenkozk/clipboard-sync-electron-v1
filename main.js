@@ -451,6 +451,14 @@ ipcMain.handle("test-peer-connections", () => {
   return { success: false, error: "P2P network not initialized" };
 });
 
+ipcMain.handle("test-network-connectivity", () => {
+  if (p2pNetwork) {
+    p2pNetwork.testNetworkConnectivity();
+    return { success: true };
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
 ipcMain.handle("get-clipboard-history", () => {
   // This would return clipboard history
   return [];

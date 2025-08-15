@@ -90,6 +90,10 @@ class P2PNetwork extends EventEmitter {
 
   startDiscovery() {
     try {
+      console.log(
+        `Starting discovery on port ${this.port} with local IP ${this.localIP}`
+      );
+
       // reuseAddr is important on macOS to properly receive multicast/broadcast
       this.discoverySocket = dgram.createSocket({
         type: "udp4",
@@ -101,6 +105,10 @@ class P2PNetwork extends EventEmitter {
       });
 
       this.discoverySocket.on("message", (msg, rinfo) => {
+        console.log(
+          `Received discovery message from ${rinfo.address}:${rinfo.port}:`,
+          msg.toString().substring(0, 100)
+        );
         try {
           const data = JSON.parse(msg.toString());
           this.handleDiscoveryMessage(data, rinfo);
@@ -112,6 +120,7 @@ class P2PNetwork extends EventEmitter {
       // Bind to all interfaces on the discovery port
       this.discoverySocket.bind(this.port, () => {
         try {
+          console.log(`Discovery socket bound to port ${this.port}`);
           this.discoverySocket.setBroadcast(true);
           this.discoverySocket.setMulticastTTL(128);
           // Enable loopback so we can see local multicast for diagnostics
@@ -131,6 +140,11 @@ class P2PNetwork extends EventEmitter {
 
           // Join multicast group on all IPv4 interfaces explicitly
           const ifaces = this.getIPv4Interfaces();
+          console.log(
+            `Found ${ifaces.length} network interfaces:`,
+            ifaces.map((i) => `${i.name}: ${i.address}/${i.netmask}`)
+          );
+
           try {
             this.discoverySocket.addMembership("224.0.0.1");
             console.log("Joined multicast 224.0.0.1 (default)");
@@ -149,15 +163,18 @@ class P2PNetwork extends EventEmitter {
           }
 
           // Start broadcasting presence
+          console.log("Starting presence broadcast...");
           this.broadcastPresence();
 
           // Set up periodic presence broadcast (reduced frequency)
           this.presenceInterval = setInterval(() => {
+            console.log("Periodic presence broadcast...");
             this.broadcastPresence();
           }, 30000); // Changed from 5000 to 30000 (30 seconds)
 
           // Improved discovery for cross-platform compatibility
           setTimeout(() => {
+            console.log("Starting improved discovery...");
             this.improvedDiscovery();
           }, 1000);
         } catch (cfgErr) {
@@ -182,6 +199,9 @@ class P2PNetwork extends EventEmitter {
     };
 
     const message = Buffer.from(JSON.stringify(presenceMessage));
+    console.log(
+      `Broadcasting presence: ${this.deviceName} (${this.deviceId}) from ${this.localIP}:${this.port}`
+    );
 
     // Broadcast to limited broadcast
     try {
@@ -192,7 +212,7 @@ class P2PNetwork extends EventEmitter {
         this.port,
         "255.255.255.255"
       );
-      // console.log(`Presence -> 255.255.255.255:${this.port}`);
+      console.log(`Presence broadcast sent to 255.255.255.255:${this.port}`);
     } catch (error) {
       console.error("Failed to broadcast presence (limited):", error);
     }
@@ -207,8 +227,12 @@ class P2PNetwork extends EventEmitter {
       try {
         this.discoverySocket.send(message, 0, message.length, this.port, bcast);
         sent.add(bcast);
-        // console.log(`Presence -> ${bcast}:${this.port}`);
-      } catch (_) {}
+        console.log(
+          `Presence broadcast sent to ${bcast}:${this.port} (interface: ${nic.name})`
+        );
+      } catch (error) {
+        console.error(`Failed to broadcast to ${bcast}:${this.port}:`, error);
+      }
     }
   }
 
@@ -291,7 +315,14 @@ class P2PNetwork extends EventEmitter {
   }
 
   handlePresenceMessage(data, rinfo) {
-    if (data.deviceId === this.deviceId) return; // Ignore our own messages
+    if (data.deviceId === this.deviceId) {
+      console.log(`Ignoring own presence message from ${rinfo.address}`);
+      return; // Ignore our own messages
+    }
+
+    console.log(
+      `Processing presence message from ${data.deviceName} (${data.deviceId}) at ${rinfo.address}:${rinfo.port}`
+    );
 
     // Store discovered device with timestamp
     this.discoveredDevices.set(data.deviceId, {
@@ -306,6 +337,8 @@ class P2PNetwork extends EventEmitter {
     console.log(
       `Discovered device: ${data.deviceName} (${data.deviceId}) at ${rinfo.address}`
     );
+    console.log(`Total discovered devices: ${this.discoveredDevices.size}`);
+
     this.emit("device-discovered", {
       deviceId: data.deviceId,
       deviceName: data.deviceName,
@@ -604,6 +637,34 @@ class P2PNetwork extends EventEmitter {
     return true; // Content changed, should send
   }
 
+  // New method to test network connectivity
+  testNetworkConnectivity() {
+    console.log("=== Network Connectivity Test ===");
+    console.log(`Device ID: ${this.deviceId}`);
+    console.log(`Device Name: ${this.deviceName}`);
+    console.log(`Local IP: ${this.localIP}`);
+    console.log(`Port: ${this.port}`);
+
+    const ifaces = this.getIPv4Interfaces();
+    console.log(
+      `Network Interfaces:`,
+      ifaces.map((i) => ({
+        name: i.name,
+        address: i.address,
+        netmask: i.netmask,
+        broadcast: this.computeBroadcastAddress(i.address, i.netmask),
+      }))
+    );
+
+    console.log(
+      `Discovery Socket: ${this.discoverySocket ? "Active" : "Not active"}`
+    );
+    console.log(`Is Running: ${this.isRunning}`);
+    console.log(`Discovered Devices: ${this.discoveredDevices.size}`);
+    console.log(`Connected Peers: ${this.peers.size}`);
+    console.log("=== End Network Test ===");
+  }
+
   // New method to get discovered devices
   getDiscoveredDevices() {
     const now = Date.now();
@@ -628,7 +689,7 @@ class P2PNetwork extends EventEmitter {
     this.broadcastPresence();
     this.improvedDiscovery();
   }
-  
+
   // New method to stop discovery
   stopDiscovery() {
     console.log("Stopping device discovery...");
@@ -637,7 +698,7 @@ class P2PNetwork extends EventEmitter {
       clearInterval(this.presenceInterval);
       this.presenceInterval = null;
     }
-    
+
     // Close the discovery socket to stop receiving broadcasts
     if (this.discoverySocket) {
       try {
