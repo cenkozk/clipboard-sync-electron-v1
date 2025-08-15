@@ -7,8 +7,8 @@ Because copying and pasting between devices shouldn't be this hard in 2025.
 Ever been coding on your laptop, found some perfect Stack Overflow snippet, but needed it on your desktop? Yeah, me too. This little app syncs your clipboard across devices using good old peer-to-peer networking. No cloud nonsense, no privacy concerns, just your devices talking to each other on your local network.
 
 <div style="display: flex; gap: 20px; justify-content: center;">
-  <img src="assets/01.png" alt="SyncClip Main Interface" width="30%" />
-  <img src="assets/02.png" alt="Device Discovery and Connection" width="30%" />
+  <img src="assets/01.png" alt="SyncClip Main Interface" width="35%" />
+  <img src="assets/02.png" alt="Device Discovery and Connection" width="35%" />
 </div>
 
 ## Just want it to work? Download and run
