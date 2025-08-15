@@ -904,39 +904,43 @@ const ClipboardSyncApp = () => {
                           </p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
                           {peers.map((peer) => (
                             <div
                               key={peer.id}
-                              className="p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md"
+                              className="flex items-center justify-between p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md"
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-2 h-2 rounded-full ${
-                                      peer.connected
-                                        ? "bg-emerald-500"
-                                        : "bg-red-500"
-                                    }`}
-                                    style={{
-                                      animation: peer.connected
-                                        ? "pulse 2s infinite"
-                                        : "none",
-                                    }}
-                                  ></div>
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    peer.connected
+                                      ? "bg-emerald-500"
+                                      : "bg-red-500"
+                                  }`}
+                                  style={{
+                                    animation: peer.connected
+                                      ? "pulse 2s infinite"
+                                      : "none",
+                                  }}
+                                ></div>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {getDeviceIcon(peer.deviceName)}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                                       {peer.deviceName}
                                     </p>
                                     {peer.localIP && (
-                                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                         {peer.localIP}
                                       </p>
                                     )}
                                   </div>
                                 </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 ml-3">
                                 <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                  className={`text-xs px-2 py-1 rounded-full ${
                                     peer.connected
                                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                       : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -946,13 +950,11 @@ const ClipboardSyncApp = () => {
                                     ? "Connected"
                                     : "Disconnected"}
                                 </span>
-                              </div>
 
-                              <div className="flex justify-end">
                                 {peer.connected && (
                                   <button
                                     onClick={() => disconnectPeer(peer.id)}
-                                    className="text-[10px] text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-3 rounded border border-red-200 dark:border-red-800 transition-colors"
+                                    className="text-xs text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-2 rounded border border-red-200 dark:border-red-800 transition-colors"
                                   >
                                     Disconnect
                                   </button>

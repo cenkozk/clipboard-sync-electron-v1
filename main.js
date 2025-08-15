@@ -18,6 +18,7 @@ let deviceName = os.hostname();
 let localIP = "127.0.0.1";
 let isConnected = false;
 let platform = os.platform();
+let clipboardMonitoringInitialized = false; // Flag to prevent multiple initializations
 
 // Create the main browser window
 function createWindow() {
@@ -75,6 +76,17 @@ function createWindow() {
 
 // Initialize clipboard monitoring
 function initClipboardMonitoring() {
+  // Prevent multiple initializations
+  if (clipboardMonitoringInitialized) {
+    console.log("Clipboard monitoring already initialized, skipping...");
+    return;
+  }
+
+  // Prevent multiple intervals
+  if (clipboardWatcher) {
+    clearInterval(clipboardWatcher);
+  }
+
   let lastClipboardContent = "";
 
   clipboardWatcher = setInterval(() => {
@@ -108,6 +120,9 @@ function initClipboardMonitoring() {
       console.error("Error reading clipboard:", error);
     }
   }, 1000);
+
+  clipboardMonitoringInitialized = true;
+  console.log("Clipboard monitoring initialized successfully");
 }
 
 // Broadcast clipboard change to all peers
@@ -389,6 +404,8 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    // Don't reinitialize clipboard monitoring or network discovery
+    // They should only be initialized once when the app starts
   }
 });
 
@@ -396,7 +413,9 @@ app.on("will-quit", () => {
   // Cleanup
   if (clipboardWatcher) {
     clearInterval(clipboardWatcher);
+    clipboardWatcher = null;
   }
+  clipboardMonitoringInitialized = false;
 
   // Stop P2P network
   if (p2pNetwork) {
@@ -410,5 +429,7 @@ app.on("will-quit", () => {
 app.on("before-quit", () => {
   if (clipboardWatcher) {
     clearInterval(clipboardWatcher);
+    clipboardWatcher = null;
   }
+  clipboardMonitoringInitialized = false;
 });
