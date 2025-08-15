@@ -827,28 +827,7 @@ const ClipboardSyncApp = () => {
                             onClick={manualRefreshDiscovery}
                             className="text-xs px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/30 transition-colors"
                           >
-                            Manual Refresh
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (window.electronAPI) {
-                                await window.electronAPI.ensureDiscoveryRunning();
-                              }
-                            }}
-                            className="text-xs px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/30 transition-colors"
-                          >
-                            Start Discovery
-                          </button>
-                          <button
-                            onClick={startNetworkScan}
-                            disabled={isScanning}
-                            className="text-xs px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 disabled:opacity-50 transition-colors"
-                          >
-                            {isScanning
-                              ? discoveryCountdown !== null
-                                ? `Scanning (${discoveryCountdown}s)`
-                                : "Scanning..."
-                              : "5s Auto-Discovery"}
+                            Refresh Devices
                           </button>
                           <button
                             onClick={testNetworkConnectivity}
