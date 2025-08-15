@@ -26,7 +26,7 @@
     "lan",
     "cross-platform"
   ],
-  "author": "Your Name",
+  "author": "Cenk Ozkan",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -66,12 +66,28 @@
       "preload.js",
       "assets/**/*",
       "renderer/**/*",
-      "!node_modules/**/*"
+      "node_modules/uuid/**/*",
+      "node_modules/@koush/wrtc/**/*",
+      "node_modules/simple-peer/**/*",
+      "node_modules/ip/**/*",
+      "node_modules/network/**/*",
+      "node_modules/events/**/*"
     ],
     "extraResources": [
       {
         "from": "assets/",
         "to": "assets/"
+      },
+      {
+        "from": "node_modules/",
+        "to": "node_modules/",
+        "filter": [
+          "uuid/**/*",
+          "@koush/wrtc/**/*",
+          "simple-peer/**/*",
+          "ip/**/*",
+          "network/**/*"
+        ]
       }
     ],
     "mac": {
@@ -98,7 +114,12 @@
     "removePackageKeywords": true,
     "asar": true,
     "asarUnpack": [
-      "renderer/**/*"
+      "renderer/**/*",
+      "node_modules/uuid/**/*",
+      "node_modules/@koush/wrtc/**/*",
+      "node_modules/simple-peer/**/*",
+      "node_modules/ip/**/*",
+      "node_modules/network/**/*"
     ],
     "forceCodeSigning": false
   }

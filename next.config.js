@@ -3,6 +3,8 @@ const nextConfig = {
   output: "export",
   distDir: "renderer",
   trailingSlash: true,
+  assetPrefix: "./",
+  basePath: "",
   images: {
     unoptimized: true,
   },

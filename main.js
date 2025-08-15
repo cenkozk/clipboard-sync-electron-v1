@@ -42,6 +42,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
+      webSecurity: false, // Allow loading local files
     },
     icon: path.join(__dirname, "assets/icon.png"),
     title: "Clipboard Sync",
@@ -68,18 +69,24 @@ function createWindow() {
   } else {
     // In production, load from the unpacked renderer directory
     let rendererPath;
-    
+
     if (app.isPackaged) {
       // When packaged, renderer files are unpacked from ASAR
-      rendererPath = path.join(process.resourcesPath, "app.asar.unpacked", "renderer", "index.html");
+      rendererPath = path.join(
+        process.resourcesPath,
+        "app.asar.unpacked",
+        "renderer",
+        "index.html"
+      );
     } else {
       // In development, use local renderer directory
       rendererPath = path.join(__dirname, "renderer", "index.html");
     }
-    
+
     console.log("Loading renderer from:", rendererPath);
     console.log("File exists:", fs.existsSync(rendererPath));
-    
+
+    // Use loadFile for better static asset handling
     mainWindow.loadFile(rendererPath);
   }
 
