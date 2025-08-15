@@ -35,6 +35,7 @@ declare global {
       getClipboardHistory: () => Promise<any[]>;
       writeClipboard: (content: string) => Promise<void>;
       connectToPeer: (deviceInfo: any) => Promise<any>;
+      disconnectFromPeer: (peerId: string) => Promise<void>;
       onClipboardChanged: (callback: (data: any) => void) => void;
       onClipboardReceived: (callback: (data: any) => void) => void;
       onNetworkStarted: (callback: (data: any) => void) => void;
@@ -59,6 +60,7 @@ interface Peer {
   connected: boolean;
   deviceName: string;
   localIP?: string;
+  connecting?: boolean;
 }
 
 interface ClipboardItem {
@@ -199,11 +201,39 @@ const ClipboardSyncApp = () => {
 
   const connectToDevice = async (device: DiscoveredDevice) => {
     if (window.electronAPI) {
+      // Check if we're already connected to this peer
+      const existingPeer = peers.find(peer => peer.id === device.deviceId);
+      if (existingPeer?.connected) {
+        console.log("Already connected to:", device.deviceName);
+        return;
+      }
+      
+      // Update connecting state
+      setPeers(prev => prev.map(p => 
+        p.id === device.deviceId ? { ...p, connecting: true } : p
+      ));
+      
       try {
         await window.electronAPI.connectToPeer(device);
         console.log("Connection initiated to:", device.deviceName);
       } catch (error) {
         console.error("Failed to connect:", error);
+        // Reset connecting state on error
+        setPeers(prev => prev.map(p => 
+          p.id === device.deviceId ? { ...p, connecting: false } : p
+        ));
+      }
+    }
+  };
+
+  const disconnectPeer = async (peerId: string) => {
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.disconnectFromPeer(peerId);
+        console.log("Disconnected from peer:", peerId);
+        // The peer list will be updated via the onPeerDisconnected event
+      } catch (error) {
+        console.error("Failed to disconnect:", error);
       }
     }
   };
@@ -450,9 +480,7 @@ const ClipboardSyncApp = () => {
           }`}
         >
           {/* App Title - Left side for Windows/Linux, Right side for macOS */}
-          <div
-            className="flex items-center gap-3"
-          >
+          <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
               <ArrowRightLeft className="w-4 h-4 text-white" />
             </div>
@@ -710,12 +738,23 @@ const ClipboardSyncApp = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => connectToDevice(device)}
-                                    className="ml-2 text-[10px] px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium transition-colors"
-                                  >
-                                    Connect
-                                  </button>
+                                  {peers.find(peer => peer.id === device.deviceId)?.connected ? (
+                                    <span className="ml-2 text-[10px] px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md font-medium">
+                                      Connected
+                                    </span>
+                                  ) : peers.find(peer => peer.id === device.deviceId)?.connecting ? (
+                                    <span className="ml-2 text-[10px] px-2 py-1 bg-emerald-500 text-white rounded-md font-medium flex items-center">
+                                      <RefreshCw className="w-2 h-2 mr-1 animate-spin" />
+                                      Connecting...
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => connectToDevice(device)}
+                                      className="ml-2 text-[10px] px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium transition-colors"
+                                    >
+                                      Connect
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -869,13 +908,15 @@ const ClipboardSyncApp = () => {
                                 </span>
                               </div>
 
-                              <div className="flex gap-2">
-                                <button className="flex-1 text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium py-1 px-2 rounded border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-                                  View Details
-                                </button>
-                                <button className="flex-1 text-[10px] text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium py-1 px-2 rounded border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                  Disconnect
-                                </button>
+                              <div className="flex justify-end">
+                                {peer.connected && (
+                                  <button 
+                                    onClick={() => disconnectPeer(peer.id)}
+                                    className="text-[10px] text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-3 rounded border border-red-200 dark:border-red-800 transition-colors"
+                                  >
+                                    Disconnect
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))}
