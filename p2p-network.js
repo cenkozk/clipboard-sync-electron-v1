@@ -166,11 +166,16 @@ class P2PNetwork extends EventEmitter {
           console.log("Starting presence broadcast...");
           this.broadcastPresence();
 
-          // Set up periodic presence broadcast (reduced frequency)
+          // Send multiple immediate broadcasts for better initial discovery
+          setTimeout(() => this.broadcastPresence(), 500);
+          setTimeout(() => this.broadcastPresence(), 1000);
+          setTimeout(() => this.broadcastPresence(), 2000);
+
+          // Set up periodic presence broadcast (more frequent for better discovery)
           this.presenceInterval = setInterval(() => {
             console.log("Periodic presence broadcast...");
             this.broadcastPresence();
-          }, 30000); // Changed from 5000 to 30000 (30 seconds)
+          }, 5000); // Changed from 30000 to 5000 (5 seconds for better discovery)
 
           // Improved discovery for cross-platform compatibility
           setTimeout(() => {
@@ -684,10 +689,32 @@ class P2PNetwork extends EventEmitter {
     return devices;
   }
 
+  // New method to ensure discovery is running
+  ensureDiscoveryRunning() {
+    if (!this.isRunning || !this.discoverySocket) {
+      console.log("Discovery not running, restarting...");
+      this.startDiscovery();
+      return false;
+    }
+    return true;
+  }
+
   // New method to manually refresh discovery
   refreshDiscovery() {
+    console.log("Manual discovery refresh triggered");
+
+    // Send multiple immediate broadcasts for better discovery
     this.broadcastPresence();
+    setTimeout(() => this.broadcastPresence(), 200);
+    setTimeout(() => this.broadcastPresence(), 500);
+    setTimeout(() => this.broadcastPresence(), 1000);
+
+    // Also run improved discovery
     this.improvedDiscovery();
+
+    // Send additional broadcasts after a delay to catch late responses
+    setTimeout(() => this.broadcastPresence(), 3000);
+    setTimeout(() => this.broadcastPresence(), 5000);
   }
 
   // New method to stop discovery

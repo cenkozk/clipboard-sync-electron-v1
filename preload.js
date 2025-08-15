@@ -26,8 +26,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("disconnect-from-peer", peerId),
   refreshDiscovery: () => ipcRenderer.invoke("refresh-discovery"),
   stopDiscovery: () => ipcRenderer.invoke("stop-discovery"),
+  ensureDiscoveryRunning: () => ipcRenderer.invoke("ensure-discovery-running"),
   testPeerConnections: () => ipcRenderer.invoke("test-peer-connections"),
-  testNetworkConnectivity: () => ipcRenderer.invoke("test-network-connectivity"),
+  testNetworkConnectivity: () =>
+    ipcRenderer.invoke("test-network-connectivity"),
 
   // System tray operations
   showFromTray: () => ipcRenderer.invoke("show-from-tray"),

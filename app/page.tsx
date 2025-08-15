@@ -40,6 +40,7 @@ declare global {
       disconnectFromPeer: (peerId: string) => Promise<void>;
       refreshDiscovery: () => Promise<void>;
       stopDiscovery: () => Promise<void>;
+      ensureDiscoveryRunning: () => Promise<any>;
       testPeerConnections: () => Promise<any>;
       testNetworkConnectivity: () => Promise<any>;
       onClipboardChanged: (callback: (data: any) => void) => void;
@@ -115,7 +116,10 @@ const ClipboardSyncApp = () => {
         try {
           const networkStatus = await window.electronAPI.getNetworkStatus();
           if (networkStatus.isInitialized) {
-            // Network is ready, fetch peers and devices
+            // Network is ready, ensure discovery is running
+            await window.electronAPI.ensureDiscoveryRunning();
+
+            // Then fetch peers and devices
             const peers = await window.electronAPI.getPeers();
             const devices = await window.electronAPI.getDiscoveredDevices();
             setPeers(peers);
@@ -278,7 +282,7 @@ const ClipboardSyncApp = () => {
           // Don't stop discovery immediately - let it run for a bit longer to catch late responses
           // Discovery will continue running in the background for better device discovery
           console.log("Scan completed, discovery continues running");
-          
+
           return null;
         }
         return prev - 1;
@@ -301,7 +305,13 @@ const ClipboardSyncApp = () => {
     if (window.electronAPI) {
       try {
         console.log("Manually refreshing discovery...");
+
+        // First ensure discovery is running
+        await window.electronAPI.ensureDiscoveryRunning();
+
+        // Then refresh discovery
         await window.electronAPI.refreshDiscovery();
+
         // Wait a bit for responses
         setTimeout(async () => {
           try {
@@ -309,7 +319,10 @@ const ClipboardSyncApp = () => {
             setDiscoveredDevices(devices);
             console.log(`Manual refresh found ${devices.length} devices`);
           } catch (error) {
-            console.error("Failed to get discovered devices after manual refresh:", error);
+            console.error(
+              "Failed to get discovered devices after manual refresh:",
+              error
+            );
           }
         }, 2000);
       } catch (error) {
@@ -811,16 +824,20 @@ const ClipboardSyncApp = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
+                            onClick={manualRefreshDiscovery}
+                            className="text-xs px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/30 transition-colors"
+                          >
+                            Manual Refresh
+                          </button>
+                          <button
+                            onClick={async () => {
                               if (window.electronAPI) {
-                                window.electronAPI
-                                  .getDiscoveredDevices()
-                                  .then(setDiscoveredDevices);
+                                await window.electronAPI.ensureDiscoveryRunning();
                               }
                             }}
-                            className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                            className="text-xs px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800/30 transition-colors"
                           >
-                            Refresh
+                            Start Discovery
                           </button>
                           <button
                             onClick={startNetworkScan}
@@ -838,12 +855,6 @@ const ClipboardSyncApp = () => {
                             className="text-xs px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
                           >
                             Test Network
-                          </button>
-                          <button
-                            onClick={manualRefreshDiscovery}
-                            className="text-xs px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/30 transition-colors"
-                          >
-                            Manual Refresh
                           </button>
                         </div>
                       </div>

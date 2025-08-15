@@ -494,6 +494,14 @@ ipcMain.handle("get-network-status", () => {
   };
 });
 
+ipcMain.handle("ensure-discovery-running", () => {
+  if (p2pNetwork) {
+    const wasRestarted = p2pNetwork.ensureDiscoveryRunning();
+    return { success: true, wasRestarted };
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
