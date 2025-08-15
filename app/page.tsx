@@ -32,14 +32,17 @@ declare global {
       closeWindow: () => Promise<void>;
       getDeviceInfo: () => Promise<any>;
       getPeers: () => Promise<any[]>;
+      getDiscoveredDevices: () => Promise<any[]>;
       getClipboardHistory: () => Promise<any[]>;
       writeClipboard: (content: string) => Promise<void>;
       connectToPeer: (deviceInfo: any) => Promise<any>;
       disconnectFromPeer: (peerId: string) => Promise<void>;
+      refreshDiscovery: () => Promise<void>;
       onClipboardChanged: (callback: (data: any) => void) => void;
       onClipboardReceived: (callback: (data: any) => void) => void;
       onNetworkStarted: (callback: (data: any) => void) => void;
       onDeviceDiscovered: (callback: (data: any) => void) => void;
+      onDeviceRemoved: (callback: (deviceId: string) => void) => void;
       onPeerConnected: (callback: (data: any) => void) => void;
       onPeerDisconnected: (callback: (data: any) => void) => void;
     };
@@ -97,12 +100,13 @@ const ClipboardSyncApp = () => {
   // Refs for element measurements
   const appContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch initial data
+  // Fetch initial data and discovered devices
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.getDeviceInfo().then(setDeviceInfo);
       window.electronAPI.getPeers().then(setPeers);
       window.electronAPI.getClipboardHistory().then(setClipboardHistory);
+      window.electronAPI.getDiscoveredDevices().then(setDiscoveredDevices);
     }
 
     // Set mounted after a short delay for entrance animations
@@ -144,6 +148,13 @@ const ClipboardSyncApp = () => {
         });
       });
 
+      window.electronAPI.onDeviceRemoved((deviceId: string) => {
+        console.log("Device removed:", deviceId);
+        setDiscoveredDevices((prev) =>
+          prev.filter((d) => d.deviceId !== deviceId)
+        );
+      });
+
       window.electronAPI.onPeerConnected((data: any) => {
         console.log("Peer connected:", data);
         // Refresh peers list
@@ -158,13 +169,15 @@ const ClipboardSyncApp = () => {
     }
   }, [deviceInfo]);
 
-  // Periodic refresh of peers
+  // Periodic refresh of peers (reduced frequency)
   useEffect(() => {
     const interval = setInterval(() => {
       if (window.electronAPI) {
         window.electronAPI.getPeers().then(setPeers);
+        // Also refresh discovered devices to clean up stale ones
+        window.electronAPI.getDiscoveredDevices().then(setDiscoveredDevices);
       }
-    }, 5000);
+    }, 10000); // Changed from 5000 to 10000 (10 seconds)
 
     return () => clearInterval(interval);
   }, []);
@@ -187,6 +200,11 @@ const ClipboardSyncApp = () => {
     setIsScanning(true);
     setScanProgress(0);
 
+    // Use the new refresh discovery API
+    if (window.electronAPI) {
+      window.electronAPI.refreshDiscovery();
+    }
+
     const interval = setInterval(() => {
       setScanProgress((prev) => {
         if (prev >= 100) {
@@ -202,26 +220,30 @@ const ClipboardSyncApp = () => {
   const connectToDevice = async (device: DiscoveredDevice) => {
     if (window.electronAPI) {
       // Check if we're already connected to this peer
-      const existingPeer = peers.find(peer => peer.id === device.deviceId);
+      const existingPeer = peers.find((peer) => peer.id === device.deviceId);
       if (existingPeer?.connected) {
         console.log("Already connected to:", device.deviceName);
         return;
       }
-      
+
       // Update connecting state
-      setPeers(prev => prev.map(p => 
-        p.id === device.deviceId ? { ...p, connecting: true } : p
-      ));
-      
+      setPeers((prev) =>
+        prev.map((p) =>
+          p.id === device.deviceId ? { ...p, connecting: true } : p
+        )
+      );
+
       try {
         await window.electronAPI.connectToPeer(device);
         console.log("Connection initiated to:", device.deviceName);
       } catch (error) {
         console.error("Failed to connect:", error);
         // Reset connecting state on error
-        setPeers(prev => prev.map(p => 
-          p.id === device.deviceId ? { ...p, connecting: false } : p
-        ));
+        setPeers((prev) =>
+          prev.map((p) =>
+            p.id === device.deviceId ? { ...p, connecting: false } : p
+          )
+        );
       }
     }
   };
@@ -683,16 +705,30 @@ const ClipboardSyncApp = () => {
                             <Users className="w-4 h-4" />
                           </div>
                           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
-                            Device Discovery
+                            Devices
                           </h2>
                         </div>
-                        <button
-                          onClick={startNetworkScan}
-                          disabled={isScanning}
-                          className="text-xs px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 disabled:opacity-50 transition-colors"
-                        >
-                          {isScanning ? "Scanning..." : "Scan Network"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (window.electronAPI) {
+                                window.electronAPI
+                                  .getDiscoveredDevices()
+                                  .then(setDiscoveredDevices);
+                              }
+                            }}
+                            className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            Refresh
+                          </button>
+                          <button
+                            onClick={startNetworkScan}
+                            disabled={isScanning}
+                            className="text-xs px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 disabled:opacity-50 transition-colors"
+                          >
+                            {isScanning ? "Scanning..." : "Scan Network"}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="space-y-3">
@@ -734,15 +770,19 @@ const ClipboardSyncApp = () => {
                                         {device.deviceName}
                                       </p>
                                       <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                                        {device.remoteIP}
+                                        {device.localIP}
                                       </p>
                                     </div>
                                   </div>
-                                  {peers.find(peer => peer.id === device.deviceId)?.connected ? (
+                                  {peers.find(
+                                    (peer) => peer.id === device.deviceId
+                                  )?.connected ? (
                                     <span className="ml-2 text-[10px] px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md font-medium">
                                       Connected
                                     </span>
-                                  ) : peers.find(peer => peer.id === device.deviceId)?.connecting ? (
+                                  ) : peers.find(
+                                      (peer) => peer.id === device.deviceId
+                                    )?.connecting ? (
                                     <span className="ml-2 text-[10px] px-2 py-1 bg-emerald-500 text-white rounded-md font-medium flex items-center">
                                       <RefreshCw className="w-2 h-2 mr-1 animate-spin" />
                                       Connecting...
@@ -910,7 +950,7 @@ const ClipboardSyncApp = () => {
 
                               <div className="flex justify-end">
                                 {peer.connected && (
-                                  <button 
+                                  <button
                                     onClick={() => disconnectPeer(peer.id)}
                                     className="text-[10px] text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-3 rounded border border-red-200 dark:border-red-800 transition-colors"
                                   >

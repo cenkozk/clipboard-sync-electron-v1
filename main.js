@@ -91,8 +91,10 @@ function initClipboardMonitoring() {
           currentContent.substring(0, 50) + "..."
         );
 
-        // Broadcast to all connected peers
-        broadcastClipboardChange(currentContent);
+        // Only broadcast if content actually changed
+        if (p2pNetwork && p2pNetwork.sendClipboardUpdate(currentContent)) {
+          broadcastClipboardChange(currentContent);
+        }
 
         // Update UI
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -184,6 +186,15 @@ function startNetworkDiscovery() {
       }
     });
 
+    p2pNetwork.on("device-removed", (deviceId) => {
+      console.log("Device removed:", deviceId);
+
+      // Update UI
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("device-removed", deviceId);
+      }
+    });
+
     p2pNetwork.on("peer-connect", (peerId, peer) => {
       console.log("Peer connected:", peerId);
       isConnected = true;
@@ -268,6 +279,22 @@ ipcMain.handle("get-peers", () => {
   return [];
 });
 
+ipcMain.handle("get-discovered-devices", () => {
+  if (p2pNetwork) {
+    const devices = p2pNetwork.getDiscoveredDevices();
+    return devices;
+  }
+  return [];
+});
+
+ipcMain.handle("refresh-discovery", () => {
+  if (p2pNetwork) {
+    p2pNetwork.refreshDiscovery();
+    return { success: true };
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
 ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
   console.log("connect-to-peer called with:", deviceInfo);
   if (p2pNetwork) {
@@ -276,6 +303,25 @@ ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
       return { success: true };
     } catch (error) {
       console.error("Failed to connect to peer:", error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "P2P network not initialized" };
+});
+
+ipcMain.handle("disconnect-from-peer", async (event, peerId) => {
+  console.log("disconnect-from-peer called with:", peerId);
+  if (p2pNetwork) {
+    try {
+      const peerData = p2pNetwork.peers.get(peerId);
+      if (peerData && peerData.peer) {
+        peerData.peer.destroy();
+        p2pNetwork.peers.delete(peerId);
+        return { success: true };
+      }
+      return { success: false, error: "Peer not found" };
+    } catch (error) {
+      console.error("Failed to disconnect from peer:", error);
       return { success: false, error: error.message };
     }
   }
@@ -298,6 +344,26 @@ ipcMain.handle("test-peer-connections", () => {
 ipcMain.handle("get-clipboard-history", () => {
   // This would return clipboard history
   return [];
+});
+
+ipcMain.handle("write-clipboard", async (event, content) => {
+  try {
+    clipboard.writeText(content);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to write to clipboard:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("read-clipboard", async () => {
+  try {
+    const content = clipboard.readText();
+    return { success: true, content };
+  } catch (error) {
+    console.error("Failed to read clipboard:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 // App lifecycle

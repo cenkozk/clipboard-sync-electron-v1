@@ -14,8 +14,11 @@ class P2PNetwork extends EventEmitter {
     this.localIP = options.localIP || this.getLocalIP();
     this.port = options.port || 8888;
     this.peers = new Map();
+    this.discoveredDevices = new Map(); // Track discovered devices
     this.discoverySocket = null;
     this.isRunning = false;
+    this.lastClipboardContent = ""; // Track last clipboard content
+    this.presenceInterval = null; // Store interval reference
 
     // Configure simple-peer options with WebRTC polyfill
     this.peerOptions = {
@@ -63,6 +66,12 @@ class P2PNetwork extends EventEmitter {
       this.discoverySocket = null;
     }
 
+    // Clear presence interval
+    if (this.presenceInterval) {
+      clearInterval(this.presenceInterval);
+      this.presenceInterval = null;
+    }
+
     // Close all peer connections
     this.peers.forEach((peer, peerId) => {
       if (peer.destroy) {
@@ -70,6 +79,9 @@ class P2PNetwork extends EventEmitter {
       }
     });
     this.peers.clear();
+
+    // Clear discovered devices
+    this.discoveredDevices.clear();
 
     console.log("P2P Network stopped");
     this.emit("stopped");
@@ -138,10 +150,10 @@ class P2PNetwork extends EventEmitter {
           // Start broadcasting presence
           this.broadcastPresence();
 
-          // Set up periodic presence broadcast
-          setInterval(() => {
+          // Set up periodic presence broadcast (reduced frequency)
+          this.presenceInterval = setInterval(() => {
             this.broadcastPresence();
-          }, 5000);
+          }, 30000); // Changed from 5000 to 30000 (30 seconds)
 
           // Opportunistic subnet scan to reach hosts on networks blocking broadcast/multicast
           setTimeout(() => {
@@ -278,6 +290,18 @@ class P2PNetwork extends EventEmitter {
   }
 
   handlePresenceMessage(data, rinfo) {
+    if (data.deviceId === this.deviceId) return; // Ignore our own messages
+
+    // Store discovered device with timestamp
+    this.discoveredDevices.set(data.deviceId, {
+      deviceId: data.deviceId,
+      deviceName: data.deviceName,
+      localIP: data.localIP,
+      remoteIP: rinfo.address,
+      port: data.port,
+      timestamp: Date.now(),
+    });
+
     console.log(
       `Discovered device: ${data.deviceName} (${data.deviceId}) at ${rinfo.address}`
     );
@@ -458,11 +482,19 @@ class P2PNetwork extends EventEmitter {
         peerData.connected = false;
         this.emit("peer-disconnect", peerId);
       }
+
+      // Remove from discovered devices when peer disconnects
+      this.discoveredDevices.delete(peerId);
+      this.emit("device-removed", peerId);
     });
 
     peer.on("error", (error) => {
       console.error(`Peer ${peerId} error:`, error);
       this.emit("peer-error", peerId, error);
+
+      // Remove from discovered devices on error
+      this.discoveredDevices.delete(peerId);
+      this.emit("device-removed", peerId);
     });
   }
 
@@ -559,6 +591,53 @@ class P2PNetwork extends EventEmitter {
 
   isConnected() {
     return this.peers.size > 0;
+  }
+
+  // New method to send clipboard data only when it changes
+  sendClipboardUpdate(content) {
+    if (content === this.lastClipboardContent) {
+      return false; // No change, don't send
+    }
+
+    this.lastClipboardContent = content;
+    return true; // Content changed, should send
+  }
+
+  // New method to get discovered devices
+  getDiscoveredDevices() {
+    const now = Date.now();
+    const devices = [];
+
+    // Clean up stale devices (older than 2 minutes)
+    for (const [deviceId, device] of this.discoveredDevices.entries()) {
+      if (now - device.timestamp > 120000) {
+        // 2 minutes
+        this.discoveredDevices.delete(deviceId);
+        this.emit("device-removed", deviceId);
+      } else {
+        devices.push(device);
+      }
+    }
+
+    return devices;
+  }
+
+  // New method to manually refresh discovery
+  refreshDiscovery() {
+    this.broadcastPresence();
+    this.scanLocalSubnet();
+  }
+
+  // New method to test all peer connections
+  testAllPeerConnections() {
+    console.log("Testing all peer connections...");
+    this.peers.forEach((peerData, peerId) => {
+      if (peerData.connected) {
+        console.log(`Peer ${peerId} (${peerData.deviceName}) is connected`);
+      } else {
+        console.log(`Peer ${peerId} (${peerData.deviceName}) is not connected`);
+      }
+    });
   }
 }
 

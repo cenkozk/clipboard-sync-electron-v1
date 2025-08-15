@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Device information
   getDeviceInfo: () => ipcRenderer.invoke("get-device-info"),
   getPeers: () => ipcRenderer.invoke("get-peers"),
+  getDiscoveredDevices: () => ipcRenderer.invoke("get-discovered-devices"),
   getClipboardHistory: () => ipcRenderer.invoke("get-clipboard-history"),
 
   // Clipboard operations
@@ -22,6 +23,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("connect-to-peer", deviceInfo),
   disconnectFromPeer: (peerId) =>
     ipcRenderer.invoke("disconnect-from-peer", peerId),
+  refreshDiscovery: () => ipcRenderer.invoke("refresh-discovery"),
   testPeerConnections: () => ipcRenderer.invoke("test-peer-connections"),
 
   // Event listeners
@@ -39,6 +41,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   onDeviceDiscovered: (callback) => {
     ipcRenderer.on("device-discovered", (event, data) => callback(data));
+  },
+  onDeviceRemoved: (callback) => {
+    ipcRenderer.on("device-removed", (event, data) => callback(data));
   },
   onNetworkStarted: (callback) => {
     ipcRenderer.on("network-started", (event, data) => callback(data));
