@@ -117,9 +117,27 @@ function createWindow() {
 
 // Create system tray
 function createTray() {
-  const iconPath = path.join(__dirname, "assets/icon.png");
+  // Use different icon sizes for different platforms
+  let iconPath;
+  if (platform === "darwin") {
+    // macOS: Use a smaller icon for menu bar (16x16 or 32x32)
+    iconPath = path.join(__dirname, "assets/icon-16.png");
+    // Fallback to main icon if small version doesn't exist
+    if (!fs.existsSync(iconPath)) {
+      iconPath = path.join(__dirname, "assets/icon.png");
+    }
+  } else {
+    // Windows/Linux: Use standard icon
+    iconPath = path.join(__dirname, "assets/icon.png");
+  }
 
   tray = new Tray(iconPath);
+
+  // macOS-specific tray settings
+  if (platform === "darwin") {
+    tray.setIgnoreDoubleClickEvents(true); // Prevent double-click issues on macOS
+  }
+
   tray.setToolTip("SyncClip - Clipboard Sync");
 
   const contextMenu = Menu.buildFromTemplate([
