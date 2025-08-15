@@ -4,6 +4,8 @@ const {
   ipcMain,
   globalShortcut,
   clipboard,
+  Tray,
+  Menu,
 } = require("electron");
 const path = require("path");
 const os = require("os");
@@ -13,11 +15,15 @@ const P2PNetwork = require("./p2p-network");
 let mainWindow;
 let clipboardWatcher;
 let p2pNetwork;
+let tray;
 let deviceId = uuidv4();
 let deviceName = os.hostname();
 let localIP = "127.0.0.1";
 let isConnected = false;
 let platform = os.platform();
+
+// Flag to track if app is actually quitting
+app.isQuiting = false;
 
 // Create the main browser window
 function createWindow() {
@@ -67,9 +73,69 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Handle window minimize - hide to tray instead of minimizing
+  mainWindow.on("minimize", (event) => {
+    event.preventDefault();
+    mainWindow.hide();
+  });
+
+  // Handle window close - hide to tray instead of closing
+  mainWindow.on("close", (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   // Handle window closed
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+}
+
+// Create system tray
+function createTray() {
+  const iconPath = path.join(__dirname, "assets/icon.png");
+
+  tray = new Tray(iconPath);
+  tray.setToolTip("SyncClip - Clipboard Sync");
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show App",
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: "Minimize to Tray",
+      click: () => {
+        if (mainWindow) {
+          mainWindow.hide();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Double-click tray icon to show window
+  tray.on("double-click", () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 }
 
@@ -314,9 +380,20 @@ ipcMain.handle("get-clipboard-history", () => {
   return [];
 });
 
+ipcMain.handle("write-clipboard", async (event, content) => {
+  try {
+    clipboard.writeText(content);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to write to clipboard:", error);
+    return { success: false, error: error.message };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
+  createTray();
   initClipboardMonitoring();
   startNetworkDiscovery();
 
@@ -326,6 +403,18 @@ app.whenReady().then(() => {
     isConnected = !isConnected;
     console.log("Clipboard sync toggled:", isConnected);
   });
+
+  // Register global shortcut to show/hide window
+  globalShortcut.register("CommandOrControl+Shift+H", () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
 });
 
 app.on("window-all-closed", () => {
@@ -334,9 +423,21 @@ app.on("window-all-closed", () => {
   }
 });
 
+app.on("before-quit", () => {
+  app.isQuiting = true;
+});
+
+app.on("will-quit", () => {
+  if (tray) {
+    tray.destroy();
+  }
+});
+
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+  // On macOS, when dock icon is clicked, show the window
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
   }
 });
 
@@ -351,12 +452,10 @@ app.on("will-quit", () => {
     p2pNetwork.stop();
   }
 
-  globalShortcut.unregisterAll();
-});
-
-// Handle app quit
-app.on("before-quit", () => {
-  if (clipboardWatcher) {
-    clearInterval(clipboardWatcher);
+  // Cleanup tray
+  if (tray) {
+    tray.destroy();
   }
+
+  globalShortcut.unregisterAll();
 });
