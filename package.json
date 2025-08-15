@@ -7,7 +7,7 @@
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:electron\"",
     "dev:next": "next dev",
     "dev:electron": "wait-on http://localhost:3000 && electron .",
-    "build": "node build-optimized.js pre && next build && next export -o renderer",
+    "build": "node build-optimized.js pre && next build",
     "build:electron": "npm run build && electron-builder && node build-optimized.js post",
     "build:mac": "npm run build && electron-builder --mac && node build-optimized.js post",
     "build:win": "npm run build && electron-builder --win && node build-optimized.js post",
