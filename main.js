@@ -344,43 +344,56 @@ ipcMain.handle("get-device-info", () => {
 });
 
 ipcMain.handle("get-peers", () => {
-  if (p2pNetwork) {
-    const peers = p2pNetwork.getConnectedPeers();
-    console.log("get-peers called, returning:", peers);
-    return peers;
+  // Ensure p2pNetwork is initialized
+  if (!p2pNetwork) {
+    console.log("get-peers called, initializing p2pNetwork...");
+    startNetworkDiscovery();
+    // Wait a bit for initialization and return empty array for now
+    return [];
   }
-  console.log("get-peers called, but p2pNetwork not initialized");
-  return [];
+
+  const peers = p2pNetwork.getConnectedPeers();
+  console.log("get-peers called, returning:", peers);
+  return peers;
 });
 
 ipcMain.handle("get-discovered-devices", () => {
-  if (p2pNetwork) {
-    const devices = p2pNetwork.getDiscoveredDevices();
-    return devices;
+  if (!p2pNetwork) {
+    console.log("get-discovered-devices called, initializing p2pNetwork...");
+    startNetworkDiscovery();
+    return [];
   }
-  return [];
+  const devices = p2pNetwork.getDiscoveredDevices();
+  return devices;
 });
 
 ipcMain.handle("refresh-discovery", () => {
-  if (p2pNetwork) {
-    p2pNetwork.refreshDiscovery();
+  if (!p2pNetwork) {
+    console.log("refresh-discovery called, initializing p2pNetwork...");
+    startNetworkDiscovery();
     return { success: true };
   }
-  return { success: false, error: "P2P network not initialized" };
+  p2pNetwork.refreshDiscovery();
+  return { success: true };
 });
 
 ipcMain.handle("connect-to-peer", async (event, deviceInfo) => {
   console.log("connect-to-peer called with:", deviceInfo);
-  if (p2pNetwork) {
-    try {
-      p2pNetwork.connectToDevice(deviceInfo);
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to connect to peer:", error);
-      return { success: false, error: error.message };
-    }
+  if (!p2pNetwork) {
+    console.log("connect-to-peer called, initializing p2pNetwork...");
+    startNetworkDiscovery();
+    return {
+      success: false,
+      error: "P2P network initializing, please try again",
+    };
   }
-  return { success: false, error: "P2P network not initialized" };
+  try {
+    p2pNetwork.connectToDevice(deviceInfo);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to connect to peer:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle("disconnect-from-peer", async (event, peerId) => {
@@ -461,6 +474,16 @@ ipcMain.handle("read-clipboard", async () => {
     console.error("Failed to read clipboard:", error);
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle("get-network-status", () => {
+  return {
+    isInitialized: !!p2pNetwork,
+    isConnected: isConnected,
+    deviceId: deviceId,
+    deviceName: deviceName,
+    localIP: localIP,
+  };
 });
 
 // App lifecycle

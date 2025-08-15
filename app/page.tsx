@@ -31,6 +31,7 @@ declare global {
       maximizeWindow: () => Promise<void>;
       closeWindow: () => Promise<void>;
       getDeviceInfo: () => Promise<any>;
+      getNetworkStatus: () => Promise<any>;
       getPeers: () => Promise<any[]>;
       getDiscoveredDevices: () => Promise<any[]>;
       getClipboardHistory: () => Promise<any[]>;
@@ -38,6 +39,7 @@ declare global {
       connectToPeer: (deviceInfo: any) => Promise<any>;
       disconnectFromPeer: (peerId: string) => Promise<void>;
       refreshDiscovery: () => Promise<void>;
+      stopDiscovery: () => Promise<void>;
       onClipboardChanged: (callback: (data: any) => void) => void;
       onClipboardReceived: (callback: (data: any) => void) => void;
       onNetworkStarted: (callback: (data: any) => void) => void;
@@ -104,9 +106,29 @@ const ClipboardSyncApp = () => {
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.getDeviceInfo().then(setDeviceInfo);
-      window.electronAPI.getPeers().then(setPeers);
       window.electronAPI.getClipboardHistory().then(setClipboardHistory);
-      window.electronAPI.getDiscoveredDevices().then(setDiscoveredDevices);
+
+      // Check network status and retry if needed
+      const initializeNetwork = async () => {
+        try {
+          const networkStatus = await window.electronAPI.getNetworkStatus();
+          if (networkStatus.isInitialized) {
+            // Network is ready, fetch peers and devices
+            const peers = await window.electronAPI.getPeers();
+            const devices = await window.electronAPI.getDiscoveredDevices();
+            setPeers(peers);
+            setDiscoveredDevices(devices);
+          } else {
+            // Network not ready, retry after a delay
+            setTimeout(initializeNetwork, 1000);
+          }
+        } catch (error) {
+          console.log("Network not ready yet, retrying...");
+          setTimeout(initializeNetwork, 1000);
+        }
+      };
+
+      initializeNetwork();
     }
 
     // Set mounted after a short delay for entrance animations
@@ -158,24 +180,40 @@ const ClipboardSyncApp = () => {
       window.electronAPI.onPeerConnected((data: any) => {
         console.log("Peer connected:", data);
         // Refresh peers list
-        window.electronAPI.getPeers().then(setPeers);
+        window.electronAPI.getNetworkStatus().then((status) => {
+          if (status.isInitialized) {
+            window.electronAPI.getPeers().then(setPeers);
+          }
+        });
       });
 
       window.electronAPI.onPeerDisconnected((data: any) => {
         console.log("Peer disconnected:", data);
         // Refresh peers list
-        window.electronAPI.getPeers().then(setPeers);
+        window.electronAPI.getNetworkStatus().then((status) => {
+          if (status.isInitialized) {
+            window.electronAPI.getPeers().then(setPeers);
+          }
+        });
       });
     }
   }, [deviceInfo]);
 
   // Periodic refresh of peers (reduced frequency)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (window.electronAPI) {
-        window.electronAPI.getPeers().then(setPeers);
-        // Also refresh discovered devices to clean up stale ones
-        window.electronAPI.getDiscoveredDevices().then(setDiscoveredDevices);
+        try {
+          const networkStatus = await window.electronAPI.getNetworkStatus();
+          if (networkStatus.isInitialized) {
+            const peers = await window.electronAPI.getPeers();
+            const devices = await window.electronAPI.getDiscoveredDevices();
+            setPeers(peers);
+            setDiscoveredDevices(devices);
+          }
+        } catch (error) {
+          console.log("Network not ready for periodic refresh");
+        }
       }
     }, 10000); // Changed from 5000 to 10000 (10 seconds)
 
@@ -186,8 +224,13 @@ const ClipboardSyncApp = () => {
     if (window.electronAPI) {
       setIsRefreshing(true);
       try {
-        const newPeers = await window.electronAPI.getPeers();
-        setPeers(newPeers);
+        const networkStatus = await window.electronAPI.getNetworkStatus();
+        if (networkStatus.isInitialized) {
+          const newPeers = await window.electronAPI.getPeers();
+          setPeers(newPeers);
+        } else {
+          console.log("Network not ready for refresh");
+        }
       } catch (error) {
         console.error("Failed to refresh peers:", error);
       } finally {
@@ -196,7 +239,9 @@ const ClipboardSyncApp = () => {
     }
   };
 
-  const [discoveryCountdown, setDiscoveryCountdown] = useState<number | null>(null);
+  const [discoveryCountdown, setDiscoveryCountdown] = useState<number | null>(
+    null
+  );
 
   const startNetworkScan = () => {
     setIsScanning(true);
@@ -218,7 +263,7 @@ const ClipboardSyncApp = () => {
         return prev + 5;
       });
     }, 100);
-    
+
     // Countdown timer
     const countdownInterval = setInterval(() => {
       setDiscoveryCountdown((prev) => {
@@ -227,12 +272,12 @@ const ClipboardSyncApp = () => {
           clearInterval(progressInterval);
           setIsScanning(false);
           setDiscoveryCountdown(null);
-          
+
           // Stop discovery to reduce network overhead
           if (window.electronAPI) {
             window.electronAPI.stopDiscovery();
           }
-          
+
           return null;
         }
         return prev - 1;
@@ -749,8 +794,10 @@ const ClipboardSyncApp = () => {
                             disabled={isScanning}
                             className="text-xs px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/30 disabled:opacity-50 transition-colors"
                           >
-                            {isScanning 
-                              ? (discoveryCountdown !== null ? `Scanning (${discoveryCountdown}s)` : "Scanning...") 
+                            {isScanning
+                              ? discoveryCountdown !== null
+                                ? `Scanning (${discoveryCountdown}s)`
+                                : "Scanning..."
                               : "5s Auto-Discovery"}
                           </button>
                         </div>

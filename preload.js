@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Device information
   getDeviceInfo: () => ipcRenderer.invoke("get-device-info"),
+  getNetworkStatus: () => ipcRenderer.invoke("get-network-status"),
   getPeers: () => ipcRenderer.invoke("get-peers"),
   getDiscoveredDevices: () => ipcRenderer.invoke("get-discovered-devices"),
   getClipboardHistory: () => ipcRenderer.invoke("get-clipboard-history"),
@@ -26,7 +27,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   refreshDiscovery: () => ipcRenderer.invoke("refresh-discovery"),
   stopDiscovery: () => ipcRenderer.invoke("stop-discovery"),
   testPeerConnections: () => ipcRenderer.invoke("test-peer-connections"),
-  
+
   // System tray operations
   showFromTray: () => ipcRenderer.invoke("show-from-tray"),
 
