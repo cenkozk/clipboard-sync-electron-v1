@@ -19,6 +19,7 @@ class P2PNetwork extends EventEmitter {
     this.isRunning = false;
     this.lastClipboardContent = ""; // Track last clipboard content
     this.presenceInterval = null; // Store interval reference
+    this.platform = os.platform(); // Detect platform for optimizations
 
     // Configure simple-peer options with WebRTC polyfill
     this.peerOptions = {
@@ -155,9 +156,9 @@ class P2PNetwork extends EventEmitter {
             this.broadcastPresence();
           }, 30000); // Changed from 5000 to 30000 (30 seconds)
 
-          // Opportunistic subnet scan to reach hosts on networks blocking broadcast/multicast
+          // Improved discovery for cross-platform compatibility
           setTimeout(() => {
-            this.scanLocalSubnet();
+            this.improvedDiscovery();
           }, 1000);
         } catch (cfgErr) {
           console.error("Failed to configure discovery socket:", cfgErr);
@@ -625,7 +626,7 @@ class P2PNetwork extends EventEmitter {
   // New method to manually refresh discovery
   refreshDiscovery() {
     this.broadcastPresence();
-    this.scanLocalSubnet();
+    this.improvedDiscovery();
   }
 
   // New method to test all peer connections
@@ -638,6 +639,93 @@ class P2PNetwork extends EventEmitter {
         console.log(`Peer ${peerId} (${peerData.deviceName}) is not connected`);
       }
     });
+  }
+
+  // New improved discovery method for better cross-platform compatibility
+  improvedDiscovery() {
+    const ifaces = this.getIPv4Interfaces();
+
+    // Send presence to common network ranges and discovered devices
+    ifaces.forEach((iface) => {
+      if (!iface.netmask) return;
+
+      // Send to common network addresses
+      const networkParts = this.getNetworkAddress(iface.address, iface.netmask);
+      if (networkParts) {
+        // Send to .1 (router), .2, .254 (common addresses)
+        const commonAddresses = [1, 2, 254];
+        commonAddresses.forEach((lastOctet) => {
+          const target = `${networkParts[0]}.${networkParts[1]}.${networkParts[2]}.${lastOctet}`;
+          if (target !== iface.address) {
+            this.sendPresenceTo(target);
+          }
+        });
+      }
+    });
+
+    // Platform-specific optimizations
+    if (this.platform === "darwin") {
+      // macOS: Additional discovery methods for better compatibility
+      this.macOSDiscovery(ifaces);
+    }
+
+    // Also do a quick subnet scan for better discovery
+    this.scanLocalSubnet();
+  }
+
+  // macOS-specific discovery optimizations
+  macOSDiscovery(ifaces) {
+    ifaces.forEach((iface) => {
+      if (!iface.netmask) return;
+
+      const networkParts = this.getNetworkAddress(iface.address, iface.netmask);
+      if (networkParts) {
+        // macOS often has firewall issues with broadcast, so send to more specific addresses
+        const additionalAddresses = [10, 20, 50, 100, 150, 200];
+        additionalAddresses.forEach((lastOctet) => {
+          const target = `${networkParts[0]}.${networkParts[1]}.${networkParts[2]}.${lastOctet}`;
+          if (target !== iface.address) {
+            this.sendPresenceTo(target);
+          }
+        });
+      }
+    });
+  }
+
+  // Helper method to get network address
+  getNetworkAddress(ip, mask) {
+    try {
+      const ipParts = ip.split(".").map((x) => parseInt(x, 10));
+      const maskParts = mask.split(".").map((x) => parseInt(x, 10));
+      if (ipParts.length !== 4 || maskParts.length !== 4) return null;
+
+      const networkParts = [];
+      for (let i = 0; i < 4; i++) {
+        networkParts.push(ipParts[i] & maskParts[i]);
+      }
+      return networkParts;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Helper method to send presence to specific address
+  sendPresenceTo(address) {
+    if (!this.discoverySocket) return;
+
+    const presenceMessage = {
+      type: "presence",
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      localIP: this.localIP,
+      port: this.port,
+      timestamp: Date.now(),
+    };
+
+    try {
+      const message = Buffer.from(JSON.stringify(presenceMessage));
+      this.discoverySocket.send(message, 0, message.length, this.port, address);
+    } catch (_) {}
   }
 }
 

@@ -497,13 +497,13 @@ const ClipboardSyncApp = () => {
       >
         {/* Custom Title Bar */}
         <div
-          className={`fixed top-0 left-0 right-0 h-14 bg-gray-950/90 backdrop-blur-xl border-b border-gray-800/50 z-50 flex items-center px-4 title-bar ${
+          className={`fixed top-0 left-0 right-0 h-12 bg-gray-950/90 backdrop-blur-xl border-b border-gray-800/50 z-50 flex items-center px-4 title-bar ${
             isMacOS ? "macos" : "windows"
           }`}
         >
           {/* App Title - Left side for Windows/Linux, Right side for macOS */}
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-400/80 to-emerald-600/80 shadow-lg backdrop-blur-sm border border-emerald-500/30">
               <ArrowRightLeft className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600">
@@ -533,9 +533,9 @@ const ClipboardSyncApp = () => {
         </div>
 
         {/* App Content with top margin for title bar */}
-        <div className="mt-14">
+        <div className="mt-12">
           {/* Tabs Section */}
-          <div className="mb-6">
+          <div className="mb-4">
             <div className="flex items-center justify-center bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl rounded-xl border border-gray-200/30 dark:border-gray-700/30 shadow-lg p-1">
               <div className="flex w-full max-w-md relative">
                 {/* Tab Background Indicator */}
@@ -908,11 +908,11 @@ const ClipboardSyncApp = () => {
                           {peers.map((peer) => (
                             <div
                               key={peer.id}
-                              className="flex items-center justify-between p-3 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md"
+                              className="flex items-center justify-between p-2 bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-md"
                             >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${
+                                  className={`w-1.5 h-1.5 rounded-full ${
                                     peer.connected
                                       ? "bg-emerald-500"
                                       : "bg-red-500"
@@ -926,11 +926,11 @@ const ClipboardSyncApp = () => {
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {getDeviceIcon(peer.deviceName)}
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
                                       {peer.deviceName}
                                     </p>
                                     {peer.localIP && (
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                                         {peer.localIP}
                                       </p>
                                     )}
@@ -938,9 +938,9 @@ const ClipboardSyncApp = () => {
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 ml-3">
+                              <div className="flex items-center gap-2 ml-2">
                                 <span
-                                  className={`text-xs px-2 py-1 rounded-full ${
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                     peer.connected
                                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                       : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -954,7 +954,7 @@ const ClipboardSyncApp = () => {
                                 {peer.connected && (
                                   <button
                                     onClick={() => disconnectPeer(peer.id)}
-                                    className="text-xs text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-1 px-2 rounded border border-red-200 dark:border-red-800 transition-colors"
+                                    className="text-[10px] text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:text-white dark:hover:bg-red-600 font-medium py-0.5 px-1.5 rounded border border-red-200 dark:border-red-800 transition-colors"
                                   >
                                     Disconnect
                                   </button>
